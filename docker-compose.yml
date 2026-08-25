@@ -1,0 +1,63 @@
+services:
+  mapcenter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: idfg/hunt-planner-mapcenter:5.0.0
+    container_name: idfg-mapcenter
+    restart: unless-stopped
+    ports:
+      - "${MAPCENTER_PORT:-8080}:8080"
+    volumes:
+      # The whole point of the YAML: edit this file on the host and reload the
+      # browser. No image rebuild, no container restart, no code deploy.
+      - ./config/app.config.yml:/usr/share/nginx/html/config/app.config.yml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 4s
+      retries: 3
+      start_period: 8s
+    read_only: true
+    # The image runs as uid 10001, so the tmpfs mounts must be owned by it —
+    # otherwise nginx cannot create /var/cache/nginx/client_temp and exits.
+    tmpfs:
+      - /tmp:uid=10001,gid=10001,mode=1777
+      - /var/cache/nginx:uid=10001,gid=10001,mode=0755
+      - /var/run:uid=10001,gid=10001,mode=0755
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  # `docker compose --profile dev up mapcenter-dev`
+  mapcenter-dev:
+    profiles: ["dev"]
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: idfg-mapcenter-dev
+    ports:
+      - "${MAPCENTER_DEV_PORT:-5173}:5173"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./public:/app/public
+      - ./index.html:/app/index.html
+      - ./vite.config.ts:/app/vite.config.ts
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+  # One-shot endpoint health probe:
+  #   docker compose --profile tools run --rm config-check
+  config-check:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: idfg-mapcenter-configcheck
+    volumes:
+      - ./config:/app/config
+      - ./scripts:/app/scripts
+    command: ["node", "scripts/validate-config.mjs", "config/app.config.yml", "--probe"]

@@ -1,0 +1,188 @@
+import { create } from 'zustand';
+import type { LayerLoadProblem } from '@/map/layerFactory';
+
+export type ToolId =
+  | 'layers' | 'basemap' | 'highlight' | 'huntFinder' | 'upload'
+  | 'search' | 'measure' | 'draw' | 'print' | 'share' | 'health' | null;
+
+export interface ResultRecord {
+  /** `${sourceId}:${id}` — unique across sources. */
+  key: string;
+  sourceId: string;
+  sourceTitle: string;
+  id: string;
+  title: string;
+  subtitle: string;
+  attributes: Record<string, unknown>;
+}
+
+export interface ServiceHealth {
+  layerId: string;
+  title: string;
+  url: string;
+  status: 'ok' | 'fallback' | 'failed';
+  message?: string;
+}
+
+interface AppState {
+  // ---- tool panel ----
+  activeTool: ToolId;
+  setActiveTool: (tool: ToolId) => void;
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  /** The results rail is independent of the tool panel: opening Layers should
+   *  not throw away the search the user just built. */
+  resultsOpen: boolean;
+  setResultsOpen: (open: boolean) => void;
+
+  // ---- layers ----
+  layerVisibility: Record<string, boolean>;
+  setLayerVisible: (layerId: string, visible: boolean) => void;
+  setLayerVisibilityBulk: (next: Record<string, boolean>) => void;
+  layerOpacity: Record<string, number>;
+  setLayerOpacity: (layerId: string, opacity: number) => void;
+  /** Layers currently below their scaleGate threshold. */
+  gatedLayers: Record<string, boolean>;
+  setGatedLayers: (next: Record<string, boolean>) => void;
+
+  // ---- basemap ----
+  basemapId: string;
+  setBasemapId: (id: string) => void;
+
+  // ---- hunt finder ----
+  filters: Record<string, string[]>;
+  setFilter: (facetId: string, values: string[]) => void;
+  toggleFilterValue: (facetId: string, value: string) => void;
+  clearFilter: (facetId: string) => void;
+  clearAllFilters: () => void;
+  keyword: string;
+  setKeyword: (keyword: string) => void;
+  syncToExtent: boolean;
+  setSyncToExtent: (sync: boolean) => void;
+
+  results: ResultRecord[];
+  resultCount: number;
+  resultsLoading: boolean;
+  resultsError: string | null;
+  setResults: (results: ResultRecord[], count: number) => void;
+  setResultsLoading: (loading: boolean) => void;
+  setResultsError: (error: string | null) => void;
+
+  hoveredResultKey: string | null;
+  setHoveredResultKey: (key: string | null) => void;
+  selectedResultKey: string | null;
+  setSelectedResultKey: (key: string | null) => void;
+
+  // ---- highlight ----
+  highlightLabels: string[];
+  setHighlightLabels: (labels: string[]) => void;
+  kmlLinks: Array<{ label: string; url: string }>;
+  setKmlLinks: (links: Array<{ label: string; url: string }>) => void;
+
+  // ---- diagnostics ----
+  health: ServiceHealth[];
+  addHealthProblem: (problem: LayerLoadProblem) => void;
+  setHealthOk: (entries: ServiceHealth[]) => void;
+
+  // ---- notifications ----
+  toast: { message: string; tone: 'info' | 'error' | 'success' } | null;
+  showToast: (message: string, tone?: 'info' | 'error' | 'success') => void;
+  dismissToast: () => void;
+}
+
+/**
+ * A single frozen empty array shared by every "no values yet" selector.
+ * Returning a fresh `[]` from a zustand selector makes getSnapshot return a
+ * new reference on every render, which React treats as a state change and
+ * loops until it throws "Maximum update depth exceeded".
+ */
+export const EMPTY_VALUES: readonly string[] = Object.freeze([]);
+
+export const useAppStore = create<AppState>((set) => ({
+  activeTool: 'layers',
+  setActiveTool: (activeTool) => set({ activeTool }),
+  sidebarOpen: true,
+  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  resultsOpen: true,
+  setResultsOpen: (resultsOpen) => set({ resultsOpen }),
+
+  layerVisibility: {},
+  setLayerVisible: (layerId, visible) =>
+    set((s) => ({ layerVisibility: { ...s.layerVisibility, [layerId]: visible } })),
+  setLayerVisibilityBulk: (next) =>
+    set((s) => ({ layerVisibility: { ...s.layerVisibility, ...next } })),
+  layerOpacity: {},
+  setLayerOpacity: (layerId, opacity) =>
+    set((s) => ({ layerOpacity: { ...s.layerOpacity, [layerId]: opacity } })),
+  gatedLayers: {},
+  setGatedLayers: (gatedLayers) => set({ gatedLayers }),
+
+  basemapId: '',
+  setBasemapId: (basemapId) => set({ basemapId }),
+
+  filters: {},
+  setFilter: (facetId, values) =>
+    set((s) => ({ filters: { ...s.filters, [facetId]: values } })),
+  toggleFilterValue: (facetId, value) =>
+    set((s) => {
+      const current = s.filters[facetId] ?? [];
+      const next = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { filters: { ...s.filters, [facetId]: next } };
+    }),
+  clearFilter: (facetId) =>
+    set((s) => {
+      const next = { ...s.filters };
+      delete next[facetId];
+      return { filters: next };
+    }),
+  clearAllFilters: () => set({ filters: {}, keyword: '' }),
+  keyword: '',
+  setKeyword: (keyword) => set({ keyword }),
+  syncToExtent: false,
+  setSyncToExtent: (syncToExtent) => set({ syncToExtent }),
+
+  results: [],
+  resultCount: 0,
+  resultsLoading: false,
+  resultsError: null,
+  setResults: (results, resultCount) => set({ results, resultCount, resultsError: null }),
+  setResultsLoading: (resultsLoading) => set({ resultsLoading }),
+  setResultsError: (resultsError) => set({ resultsError, resultsLoading: false }),
+
+  hoveredResultKey: null,
+  setHoveredResultKey: (hoveredResultKey) => set({ hoveredResultKey }),
+  selectedResultKey: null,
+  setSelectedResultKey: (selectedResultKey) => set({ selectedResultKey }),
+
+  highlightLabels: [],
+  setHighlightLabels: (highlightLabels) => set({ highlightLabels }),
+  kmlLinks: [],
+  setKmlLinks: (kmlLinks) => set({ kmlLinks }),
+
+  health: [],
+  addHealthProblem: (problem) =>
+    set((s) => ({
+      health: [
+        ...s.health.filter((h) => h.layerId !== problem.layerId),
+        {
+          layerId: problem.layerId,
+          title: problem.title,
+          url: problem.url,
+          status: problem.usedFallback ? 'fallback' : 'failed',
+          message: problem.message,
+        },
+      ],
+    })),
+  setHealthOk: (entries) =>
+    set((s) => {
+      const existing = new Map(s.health.map((h) => [h.layerId, h]));
+      for (const entry of entries) if (!existing.has(entry.layerId)) existing.set(entry.layerId, entry);
+      return { health: [...existing.values()] };
+    }),
+
+  toast: null,
+  showToast: (message, tone = 'info') => set({ toast: { message, tone } }),
+  dismissToast: () => set({ toast: null }),
+}));

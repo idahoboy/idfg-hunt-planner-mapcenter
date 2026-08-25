@@ -1,0 +1,38 @@
+{
+  "name": "idfg-hunt-planner-mapcenter",
+  "version": "5.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Idaho Fish and Game Hunt Planner Map Center — React + ArcGIS Maps SDK for JavaScript 4.x",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc -b --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "typecheck": "tsc -b --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "config:validate": "node scripts/validate-config.mjs config/app.config.yml",
+    "config:health": "node scripts/validate-config.mjs config/app.config.yml --probe"
+  },
+  "dependencies": {
+    "@arcgis/core": "^4.32.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.3.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.18.0",
+    "sirv": "^3.0.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11",
+    "vite-plugin-static-copy": "^2.2.0"
+  }
+}

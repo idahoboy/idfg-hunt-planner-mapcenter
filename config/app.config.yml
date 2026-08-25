@@ -1,0 +1,1498 @@
+# =============================================================================
+#  IDFG Hunt Planner — Map Center  ::  runtime configuration
+# =============================================================================
+#  This file is READ AT RUNTIME by the browser (fetched from /config/app.config.yml).
+#  Editing it and reloading the page changes the app — no rebuild, no redeploy.
+#  In Docker it is bind-mounted, so `docker compose restart` is not even needed.
+#
+#  Validate before shipping:   npm run config:validate
+#  Validate + probe every URL: npm run config:health
+#
+#  Schema is enforced by zod at boot (src/config/schema.ts). A layer that fails
+#  validation is skipped with a console warning rather than taking down the map.
+# =============================================================================
+
+version: 5
+
+app:
+  title: Idaho Hunt Planner
+  subtitle: Map Center
+  logo: /branding/idfg-logo.svg
+  helpUrl: https://idfg.idaho.gov/ifwis/huntplanner/mapcenter/HelpDocV2/IDFG%20Hunt%20Planner%20Map%20Center%20Help%20Documentation.html
+  contactUrl: https://idfg.idaho.gov/ifwis/portal/contact#huntplanner
+  rulesUrl: https://idfg.idaho.gov/public/hunt/rules/
+  termsUrl: https://idfg.idaho.gov/public/about/terms/
+  huntPlannerUrl: https://idfg.idaho.gov/ifwis/huntplanner/
+
+# -----------------------------------------------------------------------------
+# Service roots. Reference these anywhere below with ${roots.<name>}.
+# -----------------------------------------------------------------------------
+roots:
+  idfgPortal: https://gisportal-idfg.idaho.gov/portal
+  idfgRest: https://gisportal-idfg.idaho.gov/hosting/rest/services
+  idfgAgol: https://services.arcgis.com/FjJI5xHF2dUPVrgK/ArcGIS/rest/services
+  esriBase: https://services.arcgisonline.com/ArcGIS/rest/services
+  usgsBase: https://basemap.nationalmap.gov/arcgis/rest/services
+  nifc: https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services
+  esriLive: https://services9.arcgis.com/RHVPKKiFTONKtxq3/ArcGIS/rest/services
+  idpr: https://services1.arcgis.com/CNPdEkvnGl65jCX8/ArcGIS/rest/services
+  usfs: https://apps.fs.usda.gov/arcx/rest/services
+  blm: https://gis.blm.gov/arcgis/rest/services
+  idaho: https://gis2.idaho.gov/arcgis/rest/services
+  idl: https://services2.arcgis.com/1cvrwLhZRFh3okEF/ArcGIS/rest/services
+
+# CORS-enabled servers. 4.x needs no proxy for any of these; the legacy
+# gis_proxy.ashx is gone. Listed for esriConfig.request.trustedServers.
+network:
+  # IMPORTANT: only list servers that require CREDENTIALS (cookies / IWA).
+  # Listing a public service here makes the SDK send `credentials: include`,
+  # and the browser then rejects the response because those services answer
+  # `Access-Control-Allow-Origin: *`. Every service this app uses is public
+  # and CORS-enabled, so this list is intentionally empty.
+  trustedServers: []
+  # Optional: only used if a service ever loses CORS. Leave null to disable.
+  proxyUrl: null
+  requestTimeoutMs: 30000
+
+map:
+  center: [-114.52, 45.50]
+  zoom: 6
+  minZoom: 4
+  maxZoom: 20
+  # Idaho + margin. Constrains the view and bounds the geocoder.
+  extent:
+    xmin: -119.925
+    ymin: 40.439
+    xmax: -109.137
+    ymax: 50.199
+    wkid: 4326
+  popup:
+    dockEnabled: true
+    dockPosition: bottom-right
+    breakpoint: true
+
+# -----------------------------------------------------------------------------
+# Basemaps — all keyless. No ArcGIS Location Platform API key required,
+# no credit consumption. `default` must match one of the ids below.
+# -----------------------------------------------------------------------------
+basemaps:
+  default: esri-topo
+  items:
+    - id: esri-topo
+      title: Esri World Topographic
+      type: tiled
+      url: ${roots.esriBase}/World_Topo_Map/MapServer
+      thumbnail: /thumbnails/world_topo.png
+      printable: true
+    - id: esri-imagery
+      title: Esri Satellite Imagery
+      type: tiled
+      url: ${roots.esriBase}/World_Imagery/MapServer
+      thumbnail: /thumbnails/world_imagery.png
+      printable: true
+    - id: esri-imagery-labels
+      title: Esri Imagery with Labels
+      type: tiled
+      url: ${roots.esriBase}/World_Imagery/MapServer
+      referenceUrl: ${roots.esriBase}/Reference/World_Boundaries_and_Places/MapServer
+      thumbnail: /thumbnails/imageryLabels.jpg
+      printable: true
+    - id: usa-topo
+      title: Esri USGS Topographic
+      type: tiled
+      url: ${roots.esriBase}/USA_Topo_Maps/MapServer
+      thumbnail: /thumbnails/usa_topo.jpg
+      printable: true
+    - id: usgs-topo
+      title: USGS National Map
+      type: tiled
+      url: ${roots.usgsBase}/USGSTopo/MapServer
+      thumbnail: /thumbnails/usgstopo.jpg
+      printable: true
+    # NEW — not in the legacy app. USGS imagery+topo hybrid, keyless.
+    - id: usgs-imagery-topo
+      title: USGS Imagery Topo
+      type: tiled
+      url: ${roots.usgsBase}/USGSImageryTopo/MapServer
+      thumbnail: /thumbnails/usgstopo.jpg
+      printable: true
+    - id: hillshade-topo
+      title: Hillshade + Topographic
+      type: tiled
+      url: ${roots.esriBase}/Elevation/World_Hillshade/MapServer
+      referenceUrl: ${roots.esriBase}/World_Topo_Map/MapServer
+      thumbnail: /thumbnails/topoHigh.jpg
+      printable: true
+
+# -----------------------------------------------------------------------------
+# Layer groups — these become the four accordion sections in the Layers panel
+# AND the four legacy URL-parameter namespaces (?hunt=&admin=&reference=&wildlife=).
+# -----------------------------------------------------------------------------
+groups:
+  - id: hunt
+    title: Hunt Related Layers
+    urlParam: hunt
+    icon: crosshair
+    defaultOpen: true
+  - id: admin
+    title: Administrative Boundaries
+    urlParam: admin
+    icon: boundary
+  - id: reference
+    title: Access, Roads & Land Management
+    urlParam: reference
+    icon: road
+  - id: wildlife
+    title: Fire, Closures & Advisories
+    urlParam: wildlife
+    icon: flame
+
+# -----------------------------------------------------------------------------
+# LAYERS
+# -----------------------------------------------------------------------------
+#  legacyBit  preserves the old bitmask deep links (?hunt=5 -> bits 1 and 4).
+#             Every existing shared/bookmarked URL keeps working.
+#  health     verified   = probed live 2026-08 and returned 200 + schema
+#             replaced   = legacy endpoint was dead; this is the new source
+#             unverified = could not be reached from the build network
+#  scaleGate  reproduces the legacy "(zoom in to activate)" behaviour, but the
+#             threshold now lives here instead of four pairs of jQuery functions.
+# -----------------------------------------------------------------------------
+layers:
+
+  # ======================= HUNT =======================
+  - id: game-management-units
+    title: Game Management Units
+    group: hunt
+    legacyBit: 1
+    type: feature
+    url: ${roots.idfgAgol}/GameManagementUnits/FeatureServer/0
+    visible: true
+    health: verified
+    outFields: [OBJECTID, NAME, ID, Elk_Zone, regular_deer_url, elkZone_url_1, gmu_wtd_url]
+    popup:
+      title: "Game Management Unit {NAME}"
+      fields:
+        - { label: Unit, field: NAME }
+        - { label: Elk Zone, field: Elk_Zone }
+      links:
+        - { label: Deer seasons for this unit, field: regular_deer_url }
+        - { label: Elk zone seasons, field: elkZone_url_1 }
+        - { label: White-tailed deer info, field: gmu_wtd_url }
+    labels:
+      field: NAME
+      minScale: 3000000
+      color: "#1f2d16"
+      haloColor: "#ffffff"
+      size: 11
+      weight: bold
+
+  - id: gmu-motorized-rules
+    title: GMUs with Motorized Hunting Rules
+    group: hunt
+    legacyBit: 2
+    type: feature
+    url: ${roots.idfgAgol}/GMUsWithMotorizedHuntingRules/FeatureServer/0
+    health: verified
+    outFields: [OBJECTID, NAME]
+    popup:
+      title: "Motorized Hunting Rule — Unit {NAME}"
+      content: >
+        This unit has motorized hunting rule restrictions. Consult the current
+        big game seasons and rules booklet before hunting.
+    disclaimer:
+      text: Motorized hunting rules restrict the use of motorized vehicles while hunting. Rules vary by unit and season.
+      url: https://idfg.idaho.gov/public/hunt/rules/
+
+  - id: cwd-management-zone
+    title: Chronic Wasting Disease Management Zone
+    group: hunt
+    legacyBit: 131072
+    type: feature
+    url: ${roots.idfgRest}/Hunting/MapServer/0
+    definitionExpression: "ID IN (2707,2802,2803)"
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: CWD Management Zone
+      fields:
+        - { label: Area, field: NAME }
+      content: >
+        Mandatory CWD sampling may apply in this zone. Carcass transport
+        restrictions are in effect.
+      links:
+        - { label: CWD rules and sampling, url: "https://idfg.idaho.gov/conservation/wildlife-health/cwd" }
+
+  - id: elk-management-zones
+    title: Elk Management Zones
+    group: hunt
+    legacyBit: 4
+    type: feature
+    url: ${roots.idfgAgol}/ElkManagementZones/FeatureServer/0
+    health: verified
+    outFields: [OBJECTID, NAME, ID]
+    popup:
+      title: "{NAME} Elk Zone"
+      fields:
+        - { label: Zone, field: NAME }
+    labels:
+      field: NAME
+      minScale: 3000000
+      color: "#5a2d0c"
+      haloColor: "#ffffff"
+      size: 11
+      weight: bold
+
+  # ---- Controlled hunt areas -------------------------------------------------
+  # All eight are one service filtered by BigGame.
+  #
+  # NOTE: do NOT add a `Year` clause here. The legacy source pinned
+  # "Year = 2020", but Year on this service is not a hunt season and filtering
+  # on it drops valid areas. The service stores multiple rows per hunt area, so
+  # these layers draw each polygon more than once; that is cosmetic (identical
+  # geometry stacked) and preferable to filtering on a field whose meaning is
+  # not what its name suggests. The Hunt Finder collapses the duplicates with
+  # `dedupeBy` (see huntFinder.sources.controlled-hunts).
+  - id: controlled-hunt-antelope
+    title: Controlled Hunt Areas — Antelope
+    group: hunt
+    legacyBit: 8
+    type: feature
+    url: ${roots.idfgAgol}/ControlledHunts_All/FeatureServer/0
+    definitionExpression: "BigGame = 'Pronghorn'"
+    health: verified
+    outFields: [BigGame, HuntArea, Area, BigGameRank]
+    popup: &chPopup
+      title: "{BigGame} Controlled Hunt Area {HuntArea}"
+      fields:
+        - { label: Hunt Area, field: HuntArea }
+        - { label: Area Note, field: Area }
+
+  - id: controlled-hunt-bear
+    title: Controlled Hunt Areas — Black Bear
+    group: hunt
+    legacyBit: 16
+    type: feature
+    url: ${roots.idfgAgol}/ControlledHunts_All/FeatureServer/0
+    definitionExpression: "BigGame = 'Bear'"
+    health: verified
+    outFields: [BigGame, HuntArea, Area, BigGameRank]
+    popup: *chPopup
+
+  - id: controlled-hunt-bighorn
+    title: Controlled Hunt Areas — Bighorn Sheep
+    group: hunt
+    legacyBit: 32
+    type: feature
+    url: ${roots.idfgAgol}/ControlledHunts_All/FeatureServer/0
+    definitionExpression: "BigGame LIKE '%Sheep'"
+    health: verified
+    outFields: [BigGame, HuntArea, Area, BigGameRank]
+    popup: *chPopup
+
+  - id: controlled-hunt-deer
+    title: Controlled Hunt Areas — Deer
+    group: hunt
+    legacyBit: 64
+    type: feature
+    url: ${roots.idfgAgol}/ControlledHunts_All/FeatureServer/0
+    definitionExpression: "BigGame = 'Deer'"
+    health: verified
+    outFields: [BigGame, HuntArea, Area, BigGameRank]
+    popup: *chPopup
+
+  - id: controlled-hunt-elk
+    title: Controlled Hunt Areas — Elk
+    group: hunt
+    legacyBit: 128
+    type: feature
+    url: ${roots.idfgAgol}/ControlledHunts_All/FeatureServer/0
+    definitionExpression: "BigGame = 'Elk'"
+    health: verified
+    outFields: [BigGame, HuntArea, Area, BigGameRank]
+    popup: *chPopup
+
+  - id: controlled-hunt-goat
+    title: Controlled Hunt Areas — Mountain Goat
+    group: hunt
+    legacyBit: 256
+    type: feature
+    url: ${roots.idfgAgol}/ControlledHunts_All/FeatureServer/0
+    definitionExpression: "BigGame = 'Goat'"
+    health: verified
+    outFields: [BigGame, HuntArea, Area, BigGameRank]
+    popup: *chPopup
+
+  - id: controlled-hunt-moose
+    title: Controlled Hunt Areas — Moose
+    group: hunt
+    legacyBit: 512
+    type: feature
+    url: ${roots.idfgAgol}/ControlledHunts_All/FeatureServer/0
+    definitionExpression: "BigGame = 'Moose'"
+    health: verified
+    outFields: [BigGame, HuntArea, Area, BigGameRank]
+    popup: *chPopup
+
+  - id: controlled-hunt-turkey
+    title: Controlled Hunt Areas — Turkey
+    group: hunt
+    legacyBit: 1024
+    type: feature
+    url: ${roots.idfgAgol}/ControlledHunts_All/FeatureServer/0
+    definitionExpression: "BigGame = 'Turkey'"
+    health: verified
+    outFields: [BigGame, HuntArea, Area, BigGameRank]
+    popup: *chPopup
+
+  # ---- Hunting restrictions --------------------------------------------------
+  - id: restrictions-big-game
+    title: Areas with Hunting Restrictions — Big Game
+    group: hunt
+    legacyBit: 2048
+    type: feature
+    url: ${roots.idfgAgol}/AreasWithHuntingRestrictions/FeatureServer/0
+    health: verified
+    outFields: ["*"]
+    popup: &restrictionPopup
+      title: Hunting Restriction
+      fields:
+        - { label: Area, field: Closed_Are }
+        - { label: Restriction, field: Comments }
+
+  - id: restrictions-upland-bird-turkey
+    title: Areas with Hunting Restrictions — Upland Game Bird & Turkey
+    group: hunt
+    legacyBit: 4096
+    type: feature
+    url: ${roots.idfgAgol}/AreasWithHuntingRestrictions/FeatureServer/1
+    health: verified
+    outFields: ["*"]
+    popup: *restrictionPopup
+
+  - id: restrictions-upland-game
+    title: Areas with Hunting Restrictions — Upland Game
+    group: hunt
+    legacyBit: 8192
+    type: feature
+    url: ${roots.idfgAgol}/AreasWithHuntingRestrictions/FeatureServer/2
+    health: verified
+    outFields: ["*"]
+    popup: *restrictionPopup
+
+  - id: restrictions-waterfowl
+    title: Areas with Hunting Restrictions — Waterfowl
+    group: hunt
+    legacyBit: 16384
+    type: feature
+    url: ${roots.idfgAgol}/AreasWithHuntingRestrictions/FeatureServer/3
+    health: verified
+    outFields: ["*"]
+    popup: *restrictionPopup
+
+  - id: restrictions-furbearer
+    title: Areas with Hunting Restrictions — Furbearer
+    group: hunt
+    legacyBit: 32768
+    type: feature
+    url: ${roots.idfgAgol}/AreasWithHuntingRestrictions/FeatureServer/4
+    health: verified
+    outFields: ["*"]
+    popup: *restrictionPopup
+
+  - id: sage-grouse-zones
+    title: Sage Grouse Zones
+    group: hunt
+    legacyBit: 65536
+    type: feature
+    url: ${roots.idfgAgol}/Sage_Grouse_Zones/FeatureServer/0
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "Sage-grouse Zone {RepoZone}"
+      fields:
+        - { label: Zone, field: RepoZone }
+        - { label: Description, field: Description }
+
+  - id: pheasant-stocking
+    title: Pheasant Stocking Areas
+    group: hunt
+    legacyBit: 262144
+    type: feature
+    url: ${roots.idfgAgol}/Pheasant_Stocking/FeatureServer/0
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "{Name}"
+      fields:
+        - { label: Area, field: Name }
+      links:
+        - { label: Stocking schedule, field: Link }
+
+  - id: wolf-management-zones
+    title: Wolf Management Zones
+    group: hunt
+    legacyBit: 524288
+    type: feature
+    url: ${roots.idfgAgol}/Wolf_Management_Zones/FeatureServer/0
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "Wolf Management Zone {DAU}"
+      fields:
+        - { label: Zone, field: DAU }
+
+  # ======================= ADMINISTRATIVE =======================
+  - id: fish-game-regions
+    title: Fish and Game Regions
+    group: admin
+    legacyBit: 1
+    type: feature
+    url: ${roots.idfgAgol}/Administrative_Regions/FeatureServer/0
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "{NAME} Region"
+      fields:
+        - { label: Region, field: NAME }
+    labels: { field: NAME, minScale: 5000000, color: "#004b23", haloColor: "#ffffff", size: 12, weight: bold }
+
+  - id: counties
+    title: Counties
+    group: admin
+    legacyBit: 2
+    type: feature
+    # REPLACED: legacy pointed at gis2.idaho.gov/IdahoAGOL/Idaho_Counties, which
+    # did not respond during the 2026-08 audit. This IDFG-hosted layer carries
+    # the same boundaries and is under IDFG's own control.
+    url: ${roots.idfgAgol}/IdahoConservationPlannerAdministrativeBoundaries/FeatureServer/1
+    fallbackUrl: ${roots.idaho}/IdahoAGOL/Idaho_Counties/MapServer/1
+    health: replaced
+    outFields: ["*"]
+    popup:
+      title: "{NAME} County"
+    labels: { field: NAME, minScale: 2500000, color: "#000000", haloColor: "#ffffff", size: 10, weight: bold }
+
+  - id: usgs-quads
+    title: USGS Quad Map Boundaries
+    group: admin
+    legacyBit: 4
+    type: feature
+    url: https://services.arcgis.com/WLhB60Nqwp4NnHz3/ArcGIS/rest/services/usgs_quads_7pt5minute_id/FeatureServer/0
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "{NAME} Quadrangle"
+      fields:
+        - { label: Quad name, field: NAME }
+    labels: { field: NAME, minScale: 750000, color: "#333333", haloColor: "#ffffff", size: 9 }
+
+  - id: blm-field-offices
+    title: BLM Field Office Boundaries
+    group: admin
+    legacyBit: 8
+    type: feature
+    url: ${roots.blm}/admin_boundaries/BLM_Natl_AdminUnit/MapServer/3
+    definitionExpression: "ADMIN_ST = 'ID'"
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "{ADMU_NAME}"
+      fields:
+        - { label: Office, field: ADMU_NAME }
+        - { label: District, field: PARENT_NAME }
+      links:
+        - { label: Field office website, field: ADMU_ST_URL }
+    renderer:
+      type: simple
+      symbol: { type: line, color: "#8400a8", width: 2, style: long-dash-dot }
+    labels: { field: ADMU_NAME, minScale: 2500000, color: "#8400a8", haloColor: "#ffffff", size: 9, weight: bold }
+
+  - id: usfs-admin
+    title: USFS Administrative Boundaries
+    group: admin
+    legacyBit: 16
+    type: feature
+    url: ${roots.idfgAgol}/IdahoConservationPlannerAdministrativeBoundaries/FeatureServer/5
+    definitionExpression: >
+      FORESTNAME IN ('Idaho Panhandle National Forests','Kootenai National Forest',
+      'Nez Perce-Clearwater National Forest','Bitterroot National Forest',
+      'Payette National Forest','Salmon-Challis National Forest','Boise National Forest',
+      'Sawtooth National Forest','Caribou-Targhee National Forest','Wallowa-Whitman National Forest')
+    health: verified
+    opacity: 0.5
+    outFields: ["*"]
+    popup:
+      title: "{FORESTNAME}"
+      fields:
+        - { label: Forest, field: FORESTNAME }
+        - { label: Region, field: REGION }
+        - { label: Acres, field: GIS_ACRES, format: number }
+    renderer:
+      type: simple
+      symbol:
+        type: fill
+        color: "#e9ffbe"
+        outline: { color: "#267300", width: 2 }
+    labels: { field: FORESTNAME, minScale: 2500000, color: "#267300", haloColor: "#e9ffbe", size: 10, weight: bold }
+
+  - id: usfs-ranger-districts
+    title: USFS Ranger Districts
+    group: admin
+    legacyBit: 64
+    type: feature
+    url: ${roots.idfgAgol}/IdahoConservationPlannerAdministrativeBoundaries/FeatureServer/4
+    definitionExpression: >
+      FORESTNAME IN ('Idaho Panhandle National Forests','Kootenai National Forest',
+      'Nez Perce-Clearwater National Forest','Bitterroot National Forest',
+      'Payette National Forest','Salmon-Challis National Forest','Boise National Forest',
+      'Sawtooth National Forest','Caribou-Targhee National Forest','Wallowa-Whitman National Forest')
+    health: verified
+    opacity: 0.5
+    outFields: ["*"]
+    popup:
+      title: "{DISTRICTNAME}"
+      fields:
+        - { label: District, field: DISTRICTNAME }
+        - { label: Forest, field: FORESTNAME }
+    renderer:
+      type: simple
+      symbol:
+        type: fill
+        color: "#e9ffbe"
+        outline: { color: "#267300", width: 1, style: dash }
+    labels: { field: DISTRICTNAME, minScale: 1500000, color: "#267300", haloColor: "#e9ffbe", size: 9, weight: bold }
+
+  - id: wilderness-areas
+    title: Wilderness Areas
+    group: admin
+    legacyBit: 32
+    type: feature
+    url: ${roots.idfgAgol}/IdahoConservationPlannerAdministrativeBoundaries/FeatureServer/3
+    definitionExpression: "STATE IN ('ID','ID/MT','ID/OR')"
+    health: verified
+    opacity: 0.4
+    outFields: ["*"]
+    popup:
+      title: "{NAME}"
+      fields:
+        - { label: Wilderness, field: NAME }
+        - { label: Managing agency, field: AGENCY }
+        - { label: Acres, field: GIS_ACRES, format: number }
+    renderer:
+      type: simple
+      symbol: { type: fill, color: "#4c7300", outline: { color: "#2f4f4f", width: 1 } }
+    labels: { field: NAME, minScale: 2500000, color: "#2f4f4f", haloColor: "#eee8aa", size: 9, weight: bold }
+
+  # ======================= REFERENCE / ACCESS =======================
+  - id: surface-management
+    title: State & Federal Land Management
+    group: reference
+    legacyBit: 512
+    type: map-image
+    # REPLACED: gis.blm.gov/idarcgis/.../BLM_ID_Surface_Management_Agency returned
+    # 404 "Service not found" in the 2026-08 audit. This national cached SMA
+    # service is live and covers Idaho.
+    url: ${roots.blm}/lands/BLM_Natl_SMA_Cached_without_PriUnk/MapServer
+    health: replaced
+    opacity: 0.7
+    disclaimer:
+      text: >
+        IMPORTANT: Obtain landowner permission before entering or crossing private
+        lands. Ownership shown is generalized and is not a legal boundary survey.
+      url: https://www.blm.gov/services/geospatial
+
+  - id: access-yes
+    title: Access Yes! Properties
+    group: reference
+    legacyBit: 256
+    type: feature
+    url: ${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0
+    definitionExpression: "bidid IS NOT NULL"
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "Access Yes! — {name}"
+      fields:
+        - { label: General area, field: generalarea }
+        - { label: Description, field: description }
+        - { label: Directions, field: directions }
+        - { label: Public acres, field: accesspublicacres, format: number }
+        - { label: Access opens, field: accessbegin, format: date }
+        - { label: Access closes, field: accessend, format: date }
+        - { label: Contact, field: contactname }
+      badges:
+        - { label: Big game, field: biggame }
+        - { label: Upland game, field: uplandgame }
+        - { label: Waterfowl, field: waterfowl }
+        - { label: Trapping, field: trapping }
+        - { label: Fishing, field: fishing }
+      warnings:
+        - { label: Landowner notification required, field: landnotify }
+        - { label: No vehicles, field: noveh }
+        - { label: No camping, field: nocamp }
+        - { label: No fires, field: nofire }
+    disclaimer:
+      text: >
+        Act responsibly and respect private property. Check whether access is
+        limited, whether landowner contact is required, when access is available,
+        and what restrictions apply.
+      url: https://idfg.idaho.gov/yes
+
+  - id: forest-legacy
+    title: Forest Legacy Access
+    group: reference
+    legacyBit: 1024
+    type: feature
+    url: ${roots.idfgRest}/Access/Access/MapServer/4
+    health: verified
+    outFields: ["*"]
+    disclaimer:
+      text: >
+        The Forest Legacy Program funds conservation easements on private forest
+        land, maintaining habitat and opportunities to hunt, fish, and camp.
+      url: https://www.idl.idaho.gov/forestry/forest-legacy-program/
+
+  - id: other-access
+    title: Other Access Programs
+    group: reference
+    legacyBit: 2048
+    type: feature
+    url: ${roots.idfgRest}/Access/Access/MapServer/5
+    health: verified
+    outFields: ["*"]
+    disclaimer:
+      text: Idaho Fish and Game partners for hunting and fishing access.
+      url: https://idfg.idaho.gov/access
+
+  - id: endowment-lands
+    title: Endowment Lands Access
+    group: reference
+    legacyBit: 128
+    type: feature
+    url: ${roots.idl}/IDL_Public_Access/FeatureServer/0
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "Endowment Land — {Access}"
+      fields:
+        - { label: Access status, field: Access }
+        - { label: Acres, field: GISACRES, format: number }
+    disclaimer:
+      text: >
+        Know before you go. Access agreements are generally for wildlife recreation:
+        hunting, fishing, trapping, and wildlife watching. Access can change quickly —
+        observe posted signs.
+      url: https://idfg.idaho.gov/access/endowment
+
+  - id: large-tracts
+    title: Large Tracts Access
+    group: reference
+    legacyBit: 64
+    type: map-image
+    url: ${roots.idfgRest}/Access/Large_Tracts_Access_Agreements/MapServer
+    health: verified
+    opacity: 0.6
+    sublayers: [0, 1]
+    disclaimer:
+      text: >
+        Know before you go. Selecting an area on the map gives more information.
+        Access can change quickly — observe posted signs.
+      url: https://idfg.idaho.gov/access/large-tracts
+
+  - id: wildlife-management-areas
+    title: Wildlife Management Areas
+    group: reference
+    legacyBit: 32
+    type: feature
+    url: ${roots.idfgAgol}/WildlifeManagementAreas/FeatureServer/0
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "{Name} WMA"
+      fields:
+        - { label: WMA, field: Name }
+        - { label: Acres, field: Acres, format: number }
+    disclaimer:
+      text: >
+        During certain times of year some WMAs close to protect wildlife from
+        disturbance. Check the WMA page for use guidelines.
+      url: https://idfg.idaho.gov/wma
+
+  - id: usfs-mvum
+    title: USFS Motor Vehicle Use
+    group: reference
+    legacyBit: 16
+    type: map-image
+    url: ${roots.usfs}/EDW/EDW_MVUM_01/MapServer
+    sublayers: [0, 1, 2]
+    health: verified
+    scaleGate:
+      enableBelow: 300000
+      message: zoom in to activate
+    sublayerDefinitions:
+      "1": >
+        FORESTNAME IN ('Idaho Panhandle National Forests','Kootenai National Forest',
+        'Nez Perce-Clearwater National Forest','Bitterroot National Forest',
+        'Payette National Forest','Salmon-Challis National Forest','Boise National Forest',
+        'Sawtooth National Forest','Caribou-Targhee National Forest','Wallowa-Whitman National Forest')
+      "2": >
+        FORESTNAME IN ('Idaho Panhandle National Forests','Kootenai National Forest',
+        'Nez Perce-Clearwater National Forest','Bitterroot National Forest',
+        'Payette National Forest','Salmon-Challis National Forest','Boise National Forest',
+        'Sawtooth National Forest','Caribou-Targhee National Forest','Wallowa-Whitman National Forest')
+    disclaimer:
+      text: Motor vehicle use data maintained by the US Forest Service.
+      url: https://www.fs.usda.gov/visit/maps
+
+  - id: roads-trails
+    title: Roads & Trails
+    group: reference
+    legacyBit: 8
+    type: feature
+    url: ${roots.idpr}/Idaho_Recreation_Trails/FeatureServer/128
+    health: verified
+    outFields: ["*"]
+    scaleGate:
+      enableBelow: 1200000
+      message: zoom in to activate
+    popup:
+      title: "{NAME}"
+      fields:
+        - { label: Route number, field: ID }
+        - { label: System type, field: System_Type }
+        - { label: Miles, field: Miles, format: number }
+        - { label: Jurisdiction, field: JURISDICTION }
+        - { label: Office, field: OFFICE }
+        - { label: Phone, field: PHONE }
+        - { label: Non-motorized season, field: Season_NonMotor }
+        - { label: Auto season, field: Season_Auto }
+        - { label: ATV season, field: Season_ATV }
+        - { label: UTV season, field: Season_UTV }
+        - { label: Motorcycle season, field: Season_Motorcycle }
+      links:
+        - { label: More information, field: URL_1 }
+    disclaimer:
+      text: Public roads & trails data maintained by Idaho Dept. of Parks and Recreation.
+      url: https://www.trails.idaho.gov/trails/
+
+  - id: road-trail-closures
+    title: Emergency Road & Trail Closures
+    group: reference
+    legacyBit: 4
+    type: feature
+    url: ${roots.idpr}/Idaho_Recreation_Trails/FeatureServer/127
+    health: verified
+    outFields: ["*"]
+    scaleGate:
+      enableBelow: 1000000
+      message: zoom in to activate
+    popup:
+      title: "Closure — {NAME}"
+      fields:
+        - { label: Route number, field: ID }
+        - { label: Miles, field: MILES, format: number }
+        - { label: Jurisdiction, field: JURISDICTION }
+        - { label: Office, field: OFFICE }
+        - { label: Phone, field: PHONE }
+        - { label: Order signed, field: Date_Order_Signed, format: date }
+        - { label: Order expires, field: Date_Order_Expires, format: date }
+        - { label: Detail, field: Narrative }
+      links:
+        - { label: Closure notice, field: URL_1 }
+    disclaimer:
+      text: Public road & trail closure data maintained by IDPR. Also contact USFS and BLM offices directly.
+      url: https://www.trails.idaho.gov/trails/
+
+  - id: campgrounds
+    title: Campgrounds & Recreation Sites
+    group: reference
+    legacyBit: 2
+    type: feature
+    # REPLACED: gis2.idaho.gov/ADM/Campgrounds did not respond during the
+    # 2026-08 audit. USFS Recreation Opportunities covers the national forest
+    # campgrounds hunters actually use and is refreshed from the Recreation
+    # Portal. The IDPR service is kept as fallbackUrl if it returns.
+    url: ${roots.usfs}/EDW/EDW_RecreationOpportunities_01/MapServer/0
+    fallbackUrl: ${roots.idaho}/ADM/Campgrounds/MapServer/0
+    definitionExpression: >
+      forestname IN ('Idaho Panhandle National Forests','Kootenai National Forest',
+      'Nez Perce-Clearwater National Forest','Bitterroot National Forest',
+      'Payette National Forest','Salmon-Challis National Forest','Boise National Forest',
+      'Sawtooth National Forest','Caribou-Targhee National Forest','Wallowa-Whitman National Forest')
+    health: replaced
+    outFields: ["*"]
+    scaleGate:
+      enableBelow: 1000000
+      message: zoom in to activate
+    popup:
+      title: "{recareaname}"
+      fields:
+        - { label: Forest, field: forestname }
+        - { label: Activities, field: markeractivitygroup }
+        - { label: Season opens, field: open_season_start, format: date }
+        - { label: Season closes, field: open_season_end, format: date }
+        - { label: Hours, field: operational_hours }
+        - { label: Fees, field: feedescription }
+        - { label: Reservations, field: reservation_info }
+        - { label: Restrictions, field: restrictions }
+      links:
+        - { label: Site details, field: recareaurl }
+    disclaimer:
+      text: Recreation site data maintained by the US Forest Service. State park campgrounds are listed separately by Idaho Parks and Recreation.
+      url: https://parksandrecreation.idaho.gov/activities/camping
+
+  - id: airstrips
+    title: Airports & Airstrips
+    group: reference
+    legacyBit: 1
+    type: feature
+    # REPLACED TWICE: the legacy ITD layer (RoadFeatureLayers/MapServer/29)
+    # returns HTTP 500 and the older RITA-BTS A-16 service returns HTTP 503.
+    # NTAD Aviation Facilities is the current BTS/FAA publication and carries
+    # far richer attributes (fuel, ownership, status, elevation).
+    url: https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Aviation_Facilities/FeatureServer/0
+    definitionExpression: "STATE_CODE = 'ID' AND ARPT_STATUS = 'O'"
+    health: replaced
+    outFields: ["*"]
+    popup:
+      title: "{ARPT_NAME}"
+      fields:
+        - { label: Identifier, field: ARPT_ID }
+        - { label: City, field: CITY }
+        - { label: County, field: COUNTY_NAME }
+        - { label: Ownership, field: OWNERSHIP_TYPE_CODE }
+        - { label: Use, field: FACILITY_USE_CODE }
+        - { label: Elevation (ft), field: ELEV, format: number }
+        - { label: Fuel available, field: FUEL_TYPES }
+        - { label: Last inspected, field: LAST_INSPECTION, format: date }
+    labels:
+      field: ARPT_ID
+      minScale: 750000
+      color: "#1d4ed8"
+      haloColor: "#ffffff"
+      size: 10
+      weight: bold
+    disclaimer:
+      text: >
+        Airport and airstrip locations from the National Transportation Atlas.
+        Backcountry strip conditions change constantly - check NOTAMs and
+        current Idaho Aeronautics advisories before flying.
+
+  # ======================= FIRE / CLOSURES =======================
+  # The legacy app lost all four fire layers when USGS decommissioned GeoMAC.
+  # Three of the four are restored here against NIFC/WFIGS, which is the
+  # authoritative successor and is live as of the 2026-08 audit.
+  - id: fire-emergency-closures
+    title: Fire Emergency Closure Areas
+    group: wildlife
+    legacyBit: 1
+    type: feature
+    # BROKEN UPSTREAM: this AGOL item returned "Token Required" during the
+    # 2026-08 audit - it is no longer shared publicly, and nothing equivalent
+    # is published elsewhere. Disabled rather than left to fail silently.
+    # Re-share the item (or point this url at a public copy) and set
+    # enabled: true to restore it. No code change required.
+    enabled: false
+    url: ${roots.idfgAgol}/Emergency_Wildfire_Closures/FeatureServer/0
+    health: deprecated
+    outFields: ["*"]
+    popup:
+      title: "Fire Closure — {NAME}"
+      fields:
+        - { label: Effective date, field: UPDATE_, format: date }
+      links:
+        - { label: View on InciWeb, field: URL }
+    disclaimer:
+      text: >
+        Compiled by Idaho Fish and Game from official closures posted by the US
+        Forest Service, BLM, and Idaho Dept. of Lands.
+      url: https://idfg.idaho.gov/ifwis/maps/realtime/fire/
+
+  - id: fire-perimeters-current
+    title: Current Year Fire Perimeters
+    group: wildlife
+    legacyBit: 2
+    type: feature
+    # RESTORED: legacy pointed at wildfire.cr.usgs.gov/geomac_fires/2 (DNS dead
+    # since the 2020 GeoMAC decommission). NIFC WFIGS is the successor.
+    url: ${roots.nifc}/WFIGS_Interagency_Perimeters_YearToDate/FeatureServer/0
+    health: replaced
+    opacity: 0.65
+    refreshIntervalMinutes: 30
+    outFields: ["*"]
+    popup:
+      title: "{poly_IncidentName} Fire"
+      fields:
+        - { label: Acres, field: poly_GISAcres, format: number }
+        - { label: Perimeter date, field: poly_PolygonDateTime, format: date }
+        - { label: Containment, field: attr_PercentContained, suffix: "%" }
+        - { label: Cause, field: attr_FireCause }
+        - { label: Discovered, field: attr_FireDiscoveryDateTime, format: date }
+    renderer:
+      type: simple
+      symbol:
+        type: fill
+        color: "rgba(214, 69, 32, 0.45)"
+        outline: { color: "#8c2b0f", width: 1.5 }
+    disclaimer:
+      text: Interagency fire perimeters from NIFC/WFIGS. Refreshed automatically every 30 minutes.
+      url: https://data-nifc.opendata.arcgis.com/
+
+  - id: fire-detections
+    title: Satellite Fire Detections (VIIRS, last 48h)
+    group: wildlife
+    legacyBit: 4
+    type: feature
+    # RESTORED: replaces the dead GeoMAC "MODIS Fire Detections" layer. VIIRS is
+    # higher resolution (375m vs 1km) and is the current NASA/NOAA standard.
+    url: ${roots.esriLive}/Satellite_VIIRS_Thermal_Hotspots_and_Fire_Activity/FeatureServer/0
+    definitionExpression: "hours_old <= 48"
+    health: replaced
+    refreshIntervalMinutes: 15
+    outFields: ["*"]
+    popup:
+      title: Thermal Hotspot
+      fields:
+        - { label: Detected, field: acq_date, format: date }
+        - { label: Confidence, field: confidence }
+        - { label: Brightness (K), field: bright_ti4, format: number }
+        - { label: Fire radiative power, field: frp, format: number }
+        - { label: Hours old, field: hours_old, format: number }
+        - { label: Satellite, field: satellite }
+    disclaimer:
+      text: >
+        Satellite hotspots are automated detections, not confirmed fires. They may
+        include flares, industrial heat, and prescribed burns.
+      url: https://firms.modaps.eosdis.nasa.gov/
+
+  - id: fire-perimeters-historic
+    title: Historic Fire Perimeters
+    group: wildlife
+    legacyBit: 16
+    type: feature
+    # RESTORED: legacy pointed at rmgsc.cr.usgs.gov/geomac_dyn/27, which returns
+    # HTTP 403 today. The NIFC history view covers 1900-present.
+    url: ${roots.nifc}/InterAgencyFirePerimeterHistory_All_Years_View/FeatureServer/0
+    definitionExpression: "FIRE_YEAR_INT >= 2010"
+    health: replaced
+    opacity: 0.55
+    outFields: ["*"]
+    popup:
+      title: "{INCIDENT} ({FIRE_YEAR})"
+      fields:
+        - { label: Year, field: FIRE_YEAR }
+        - { label: Acres, field: GIS_ACRES, format: number }
+        - { label: Agency, field: AGENCY }
+        - { label: Mapping method, field: MAP_METHOD }
+    renderer:
+      type: simple
+      symbol:
+        type: fill
+        color: "rgba(140, 90, 60, 0.35)"
+        outline: { color: "#6b4423", width: 0.75 }
+
+  - id: active-fire-incidents
+    title: Active Wildfire Incidents
+    group: wildlife
+    legacyBit: 32
+    type: feature
+    url: ${roots.esriLive}/USA_Wildfires_v1/FeatureServer/0
+    health: verified
+    refreshIntervalMinutes: 15
+    outFields: ["*"]
+    popup:
+      title: "{IncidentName} Fire"
+      fields:
+        - { label: Acres, field: DailyAcres, format: number }
+        - { label: Contained, field: PercentContained, suffix: "%" }
+        - { label: Discovered, field: FireDiscoveryDateTime, format: date }
+        - { label: Cause, field: FireCauseGeneral }
+        - { label: County, field: POOCounty }
+        - { label: Personnel assigned, field: TotalIncidentPersonnel, format: number }
+        - { label: Complexity, field: FireMgmtComplexity }
+    disclaimer:
+      text: USA wildfire incident data maintained by IRWIN and NIFC. Refreshed every 15 minutes.
+      url: https://www.esri.com/en-us/disaster-response/disasters/wildfires
+
+  - id: quagga-closures
+    title: Quagga Mussel Closure Areas
+    group: wildlife
+    legacyBit: 64
+    type: feature
+    url: ${roots.idpr}/Idaho_QZM_Closure_Areas/FeatureServer/0
+    definitionExpression: "Status IN ('Closed','Mandatory Decontamination Area')"
+    health: verified
+    outFields: ["*"]
+    popup:
+      title: "{Area_Name} — {Status}"
+      fields:
+        - { label: Status, field: Status }
+        - { label: Reason, field: Closure_Reason }
+        - { label: Jurisdiction, field: Jurisdiction }
+        - { label: Agency, field: Agency_Name }
+        - { label: Phone, field: Agency_phone }
+        - { label: Comments, field: Comments }
+      links:
+        - { label: Agency website, field: Agency_website }
+    renderer:
+      type: simple
+      symbol:
+        type: fill
+        color: "rgba(255, 0, 0, 0.35)"
+        outline: { color: "#000000", width: 1, style: dash }
+    labels: { field: Status, minScale: 2500000, color: "#323232", haloColor: "#ffffff", size: 12, weight: bold }
+    disclaimer:
+      text: Quagga mussel detection on the Snake River. Decontamination may be mandatory.
+      url: https://idfg.idaho.gov/quagga
+
+# =============================================================================
+#  HUNT FINDER  —  the VRBO-style top filter bar + results rail
+# =============================================================================
+#  Every facet below is answered by a live ArcGIS attribute query. Nothing is
+#  hard-coded: pick-list values are read from the services at boot and cached
+#  for `cacheTtlMinutes`. Adding a facet here adds a control to the filter bar.
+#
+#  `sources` are the searchable record sets. A source is included in a search
+#  only when the active facet values can be expressed against its fields, so
+#  selecting "Elk" narrows Controlled Hunts and Elk Zones but drops Waterfowl.
+# =============================================================================
+huntFinder:
+  enabled: true
+  cacheTtlMinutes: 60
+  pageSize: 50
+  # Results rail behaviour, VRBO-style.
+  results:
+    hoverHighlights: true      # hovering a card flashes the geometry on the map
+    clickZooms: true           # clicking a card zooms + opens the popup
+    syncToExtent: true         # "Search as I move the map" toggle
+    syncDefault: false
+    emptyMessage: No hunt areas match these filters. Try clearing a filter.
+
+  sources:
+    - id: controlled-hunts
+      title: Controlled Hunt Areas
+      kind: controlled
+      url: ${roots.idfgRest}/Hunting/MapServer/4
+      idField: AreaID
+      titleTemplate: "{BigGame} Hunt Area {HuntArea}"
+      subtitleTemplate: "Controlled hunt area"
+      # This service stores several rows per hunt area (2,162 rows for 574
+      # named areas): the same BigGame + HuntArea appears once per stored
+      # boundary version, each with its own AreaID and Year.
+      #
+      # Do NOT reintroduce Year here — it is not a hunt season.
+      #
+      # For a deduped source the identity fields ARE the projection: DISTINCT
+      # applies to the selected columns, and the server requires ORDER BY to
+      # reference only projected columns. AreaRank is carried along because it
+      # is constant per hunt area and gives the list its intended ordering.
+      outFields: [BigGame, HuntArea, AreaRank]
+      orderBy: [AreaRank, HuntArea]
+      dedupeBy: [BigGame, HuntArea, AreaRank]
+      #
+      # OPEN QUESTION — pending confirmation from IDFG GIS (raised 2026-08-25).
+      #
+      # A named hunt area is stored more than once, each version with its own
+      # AreaID. Elk "3-2" is AreaID 1541 (AreaRank 125) and AreaID 2762
+      # (AreaRank 124). Nothing in the service identifies which boundary is
+      # current: FLAG is 1 on both, and FLAG=1 covers only Deer, Elk, Moose,
+      # Pronghorn and Turkey. Year is NOT a season and must not be used.
+      #
+      # Until the data owner confirms the rule, the highlight and the KML use
+      # whichever row the service returns first. That is arbitrary, so it is
+      # surfaced to the user via `caveat` below rather than presented as
+      # authoritative. When the rule is known, encode it here (an ORDER BY on
+      # the geometry lookup, or a filter on whatever field marks the current
+      # version) — no application code should need to change.
+      caveat: >
+        Some hunt areas are stored with more than one boundary version and the
+        current one is not yet confirmed. Check the boundary against the
+        printed seasons and rules before relying on it.
+      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/4/query?where=AreaID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz
+      facetFields:
+        species: BigGame
+      # Legacy pick lists grouped Rocky Mtn / California Sheep under "Bighorn
+      # Sheep" and displayed Furbearer as "Beaver". Preserved here as data.
+      speciesAliases:
+        Rocky Mtn Sheep: Bighorn Sheep
+        California Sheep: Bighorn Sheep
+        Furbearer: Beaver
+
+    - id: game-units
+      title: Game Management Units
+      kind: unit
+      url: ${roots.idfgRest}/Hunting/MapServer/3
+      idField: ID
+      titleTemplate: "Unit {NAME}"
+      subtitleTemplate: "General season unit · Elk Zone {Elk_Zone}"
+      outFields: [OBJECTID, ID, NAME, Elk_Zone, Name_sort, regular_deer_url, elkZone_url_1, gmu_wtd_url]
+      orderBy: [Name_sort]
+      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/3/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz
+      facetFields:
+        unit: NAME
+        elkZone: Elk_Zone
+
+    - id: elk-zones
+      title: Elk Management Zones
+      kind: zone
+      url: ${roots.idfgRest}/Hunting/MapServer/1
+      idField: ID
+      titleTemplate: "{NAME} Elk Zone"
+      subtitleTemplate: Elk management zone
+      outFields: [OBJECTID, ID, NAME]
+      orderBy: [NAME]
+      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/1/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz
+      speciesScope: [Elk]
+      facetFields:
+        elkZone: NAME
+
+    - id: waterfowl-areas
+      title: Waterfowl Hunt Areas
+      kind: waterfowl
+      url: ${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0
+      idField: huntID
+      titleTemplate: "{Area_Name}"
+      subtitleTemplate: Waterfowl hunt area
+      outFields: [OBJECTID, huntID, Area_Name, AreaNote, Acres]
+      orderBy: [Area_Name]
+      speciesScope: [Waterfowl]
+      kmlTemplate: ${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0/query?where=huntID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz
+
+    - id: access-yes
+      title: Access Yes! Properties
+      kind: access
+      url: ${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0
+      idField: id
+      titleTemplate: "{name}"
+      subtitleTemplate: "Access Yes! · {generalarea} · {accesspublicacres} public acres"
+      outFields: ["*"]
+      orderBy: [name]
+      baseWhere: "bidid IS NOT NULL"
+      facetFields:
+        region: primaryregion
+        accessOpportunity:
+          # facet value -> field that must be 'Y'/1 on the record
+          Big game: biggame
+          Upland game: uplandgame
+          Small game: smallgame
+          Waterfowl: waterfowl
+          Trapping: trapping
+          Fishing: fishing
+
+    - id: species-distribution
+      title: Species Distribution
+      kind: distribution
+      url: ${roots.idfgRest}/Species/Distribution/MapServer/3
+      idField: TaxonID
+      titleTemplate: "{Common_Name}"
+      subtitleTemplate: "Modeled range · {Season}"
+      outFields: [OBJECTID, TaxonID, Common_Name, Scientific_Name, Category, Season, Sqkm]
+      orderBy: [Common_Name]
+      kmlTemplate: ${roots.idfgRest}/Species/Distribution/MapServer/3/query?where=TaxonID+IN+({ids})&outFields=Common_Name&returnGeometry=true&outSR=4326&f=kmz
+      facetFields:
+        species: Common_Name
+
+  # ---- The filter bar itself -------------------------------------------------
+  # `type` drives the control: multiselect | select | search | toggleGroup | extent
+  # `source: live` reads distinct values from the service named in `from`.
+  facets:
+    - id: species
+      label: Species
+      type: multiselect
+      icon: deer
+      placeholder: Any species
+      primary: true            # primary facets sit in the always-visible bar
+      source: live
+      from: controlled-hunts
+      field: BigGame
+      applyAliases: true
+      sortBy: label
+
+    - id: huntType
+      label: Hunt type
+      type: toggleGroup
+      icon: tag
+      primary: true
+      source: static
+      options:
+        - { value: unit, label: General season units, sources: [game-units] }
+        - { value: controlled, label: Controlled hunts, sources: [controlled-hunts] }
+        - { value: zone, label: Elk zones, sources: [elk-zones] }
+        - { value: waterfowl, label: Waterfowl areas, sources: [waterfowl-areas] }
+        - { value: access, label: Access Yes! properties, sources: [access-yes] }
+        - { value: distribution, label: Species distribution, sources: [species-distribution] }
+
+    - id: unit
+      label: Unit
+      type: multiselect
+      icon: hash
+      placeholder: Any unit
+      primary: true
+      source: live
+      from: game-units
+      field: NAME
+      sortBy: natural          # 1, 2, 4A, 4B, 10, 10A — not lexicographic
+
+    - id: elkZone
+      label: Elk zone
+      type: multiselect
+      icon: mountain
+      placeholder: Any zone
+      source: live
+      from: elk-zones
+      field: NAME
+      sortBy: label
+
+    - id: region
+      label: IDFG region
+      type: multiselect
+      icon: map
+      placeholder: Any region
+      primary: true
+      source: live
+      from: regions-lookup
+      field: NAME
+      sortBy: label
+      lookup:
+        url: ${roots.idfgAgol}/Administrative_Regions/FeatureServer/0
+        field: NAME
+      # Region is spatial for most sources: intersect the region geometry
+      # rather than matching an attribute.
+      spatial: true
+
+    - id: accessOpportunity
+      label: Allowed activity
+      type: multiselect
+      icon: check
+      placeholder: Any activity
+      source: static
+      appliesTo: [access-yes]
+      options:
+        - { value: Big game, label: Big game }
+        - { value: Upland game, label: Upland game }
+        - { value: Small game, label: Small game }
+        - { value: Waterfowl, label: Waterfowl }
+        - { value: Trapping, label: Trapping }
+        - { value: Fishing, label: Fishing }
+
+
+    - id: keyword
+      label: Search
+      type: search
+      icon: search
+      primary: true
+      placeholder: Unit, zone, hunt area, or property name
+      # Fields searched per source, LIKE '%term%'
+      searchFields:
+        controlled-hunts: [HuntArea, BigGame]
+        game-units: [NAME]
+        elk-zones: [NAME]
+        waterfowl-areas: [Area_Name]
+        access-yes: [name, generalarea, description]
+        species-distribution: [Common_Name, Scientific_Name]
+
+# =============================================================================
+#  HIGHLIGHT  —  the legacy "Highlight a Hunt Area" tool
+# =============================================================================
+#  Kept for URL compatibility. Legacy deep links look like:
+#     ?val=1234&lyr=4&lbl=Sawtooth+Elk+Zone
+#  `queryLayers` is indexed by the legacy `lyr` value, so old links from the
+#  Hunt Planner search results keep resolving.
+# =============================================================================
+highlight:
+  symbol:
+    fill: "rgba(154, 32, 219, 0.10)"
+    outline: "#9a20db"
+    width: 2
+  hatchedSymbol:
+    style: backward-diagonal
+    color: "#9a20db"
+    width: 3
+  labelSymbol:
+    color: "#3c0a5e"
+    haloColor: "#ffffff"
+    size: 13
+    weight: bold
+  zoomPadding: 60
+  # index == legacy `lyr` URL parameter value
+  queryLayers:
+    0: { url: "${roots.idfgRest}/Hunting/MapServer/0", idField: ID,      label: Hunt Areas }
+    1: { url: "${roots.idfgRest}/OutfittersAndGuides/MapServer/0", idField: ID, label: Outfitter & Guide Areas }
+    2: { url: "${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0", idField: id, label: "Access Yes! Properties" }
+    3: { url: "${roots.idfgRest}/Hunting/MapServer/3", idField: ID,      label: Game Management Units }
+    4: { url: "${roots.idfgRest}/Hunting/MapServer/1", idField: ID,      label: Elk Zones }
+    5: { url: "${roots.idfgRest}/Hunting/MapServer/4", idField: AreaID,  label: Controlled Hunts }
+    6: { url: "${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0", idField: huntID, label: Waterfowl Hunt Areas }
+    7: { url: "${roots.idfgRest}/Species/Distribution/MapServer/3", idField: TaxonID, label: Species Distribution }
+
+# =============================================================================
+#  TOOLS
+# =============================================================================
+tools:
+  layers:      { enabled: true, label: Turn Layers On/Off, icon: layers }
+  basemap:     { enabled: true, label: Change the Basemap, icon: globe }
+  highlight:   { enabled: true, label: Highlight a Hunt Area, icon: bolt }
+  huntFinder:  { enabled: true, label: Find a Hunt, icon: search }
+
+  upload:
+    enabled: true
+    label: Upload Waypoints & Tracks
+    icon: upload
+    # Legacy accepted GPX only, via the ArcGIS Online generate endpoint (an
+    # external round-trip that uploaded the user's file to arcgis.com).
+    # These formats are parsed entirely in the browser — nothing leaves the
+    # device — which is both faster and better for privacy.
+    formats: [gpx, kml, kmz, geojson, csv]
+    maxFileSizeMb: 25
+    maxFeatures: 20000
+    symbols:
+      point:   { color: "#ff0000", size: 9, outline: "#000000" }
+      line:    { color: "#ff0000", width: 3 }
+      polygon: { color: "rgba(255,0,0,0.25)", outline: "#ff0000" }
+
+  search:
+    enabled: true
+    label: Search By Place or Coordinates
+    icon: search
+    # Keyless Esri World Geocoder. Suggestions + geocoding both work without a
+    # key for this service; results are clipped to the Idaho extent.
+    geocoder:
+      url: https://geocode-api.arcgis.com/arcgis/rest/services/World/GeocodeServer
+      fallbackUrl: https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer
+      countryCode: USA
+      maxSuggestions: 8
+    coordinateFormats: [dd, dms, ddm, utm, mgrs]
+    defaultCoordinateFormat: dd
+    zoomScale: 36112
+
+  measure:
+    enabled: true
+    label: Measurements & Coordinates
+    icon: ruler
+    lengthUnits: [miles, feet, kilometers, meters, yards, nautical-miles]
+    areaUnits: [acres, square-miles, hectares, square-kilometers, square-feet]
+    defaultLengthUnit: miles
+    defaultAreaUnit: acres
+    symbol:
+      color: "rgba(165, 24, 221, 0.55)"
+      width: 3
+
+  draw:
+    enabled: true
+    label: Draw On the Map
+    icon: pencil
+    tools: [point, multipoint, polyline, polygon, rectangle, circle, freehand-polyline, freehand-polygon, text]
+    defaultColor: "#ff7200"
+    palette: ["#ff7200", "#e11d48", "#2563eb", "#16a34a", "#7c3aed", "#000000", "#ffffff"]
+    textDefaults:
+      size: 14
+      color: "#000000"
+      haloColor: "#ffffff"
+      weight: bold
+    # NEW: drawings survive a reload (legacy lost them on refresh).
+    persistToLocalStorage: true
+
+  print:
+    enabled: true
+    label: Create Printable Map
+    icon: printer
+    serviceUrl: ${roots.idfgRest}/Utilities/PrintingTools/GPServer/Export%20Web%20Map%20Task
+    layouts:
+      - { value: "Letter ANSI A Portrait",  label: "Letter — Portrait" }
+      - { value: "Letter ANSI A Landscape", label: "Letter — Landscape" }
+      - { value: "Tabloid ANSI B Portrait", label: "Tabloid — Portrait" }
+      - { value: "Tabloid ANSI B Landscape",label: "Tabloid — Landscape" }
+      - { value: "MAP_ONLY",                label: "Map only (no margins)" }
+    formats: [PDF, PNG32, PNG8, JPG, GIF, EPS, SVG]
+    defaultLayout: Letter ANSI A Landscape
+    defaultFormat: PDF
+    dpi: 150
+    includeLegend: true
+    timeoutSeconds: 120
+
+  share:
+    enabled: true
+    label: Share This Map
+    icon: link
+    # NEW — the legacy app could only be deep-linked from outside; it never
+    # produced a link to the user's own current view.
+    includesLayerState: true
+    includesFilters: true
+    includesExtent: true
+    includesDrawings: false
+    shortLinkService: null
+
+  kml:
+    enabled: true
+    label: Download Highlighted Areas as KML
+    icon: download
+
+  export:
+    enabled: true
+    label: Download results as CSV
+    icon: table
+    maxRows: 5000
+
+  locate:
+    enabled: true
+    label: My Location
+    icon: crosshair
+    scale: 36112
+
+  coordinateReadout:
+    enabled: true
+    # Click the readout to cycle through these.
+    formats: [dd, dms, utm]
+    utmZones:
+      - { wkid: 102205, label: "NAD83 UTM 11T", minLon: -120, maxLon: -114 }
+      - { wkid: 102206, label: "NAD83 UTM 12T", minLon: -114, maxLon: -108 }
+
+# =============================================================================
+#  UI
+# =============================================================================
+ui:
+  theme:
+    # Legacy "Blaze Orange" IDFG palette, carried across.
+    primary: "#4a5231"
+    primaryDark: "#333a20"
+    accent: "#ff7200"
+    accentDark: "#d95f00"
+    surface: "#ffffff"
+    surfaceAlt: "#f5f5f0"
+    border: "#d9d9cc"
+    text: "#1f2119"
+    textMuted: "#5f6357"
+    danger: "#c1121f"
+    focusRing: "#ff7200"
+  layout:
+    filterBarHeight: 68
+    resultsRailWidth: 400
+    sidebarWidth: 380
+    mobileBreakpoint: 768
+    tabletBreakpoint: 1024
+  # NEW: none of this existed in the legacy app.
+  darkMode: auto            # auto | light | dark
+  reduceMotionRespected: true
+  a11y:
+    announceResultCounts: true
+    keyboardShortcuts: true
+  shortcuts:
+    help: "?"
+    search: "/"
+    toggleLayers: "l"
+    toggleFilters: "f"
+    clearHighlight: "Escape"
+    print: "p"
+
+# =============================================================================
+#  TELEMETRY / DIAGNOSTICS
+# =============================================================================
+diagnostics:
+  # Surfaces a "Service health" panel listing every configured endpoint and
+  # whether it responded. This is the thing that would have caught the GeoMAC
+  # decommission in 2020 instead of in 2025.
+  healthPanel: true
+  probeOnBoot: false        # true = probe every service at page load
+  logLevel: warn            # debug | info | warn | error
+  showLayerLoadErrors: true
