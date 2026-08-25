@@ -23,14 +23,6 @@ function copyEsriAssets(): Plugin {
       const to = resolve(process.cwd(), 'dist/esri');
       await cp(from, to, { recursive: true, force: true });
       this.info?.(`copied ArcGIS SDK assets -> ${to}`);
-
-      // Ship the default config alongside the bundle. In Docker this file is
-      // bind-mounted over, so editing the host copy changes the running app.
-      await cp(
-        resolve(process.cwd(), 'config/app.config.yml'),
-        resolve(process.cwd(), 'dist/config/app.config.yml'),
-        { force: true },
-      );
     },
   };
 }
@@ -65,12 +57,33 @@ const base = process.env['VITE_BASE'] ?? '/';
 // takes the Pages deployment from ~100MB to ~17MB.
 const bundleEsriAssets = !process.env['VITE_ESRI_ASSETS_PATH'];
 
+/**
+ * Ships the default config alongside the bundle. Always runs: in Docker this
+ * file is bind-mounted over so editing the host copy changes the running app,
+ * and on a static host it is the only copy there is.
+ */
+function copyRuntimeConfig(): Plugin {
+  return {
+    name: 'copy-runtime-config',
+    apply: 'build',
+    async closeBundle() {
+      await cp(
+        resolve(process.cwd(), 'config/app.config.yml'),
+        resolve(process.cwd(), 'dist/config/app.config.yml'),
+        { force: true },
+      );
+      this.info?.('copied app.config.yml -> dist/config/');
+    },
+  };
+}
+
 export default defineConfig({
   base,
   plugins: [
     react(),
     serveEsriAssetsInDev(),
     ...(bundleEsriAssets ? [copyEsriAssets()] : []),
+    copyRuntimeConfig(),
   ],
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

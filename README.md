@@ -14,6 +14,10 @@ declared in [`config/app.config.yml`](config/app.config.yml) and read at
 **runtime**. Adding a layer, repointing a dead service, or retiring a tool is a
 config edit and a browser reload, not a code change and a redeploy.
 
+**Live demo:** <https://idahoboy.github.io/idfg-hunt-planner-mapcenter/> —
+the real application against the real IDFG services, so the layer list, the
+result counts and the Service health panel are all live data.
+
 ---
 
 ## Quick start
@@ -138,6 +142,18 @@ its ArcGIS Online item stopped being shared publicly.
 Change `url`. If you want a grace period, keep the old one as `fallbackUrl`; the
 layer loader tries the primary, falls back on failure, and reports which one it
 used in the Service health panel.
+
+### Publishing the demo
+
+```bash
+npm run deploy:pages
+```
+
+Builds with `VITE_BASE=/<repo>/` and force-pushes `dist/` to `gh-pages`. Pages
+serves from a sub-path, so every runtime fetch resolves against
+`import.meta.env.BASE_URL` rather than a leading slash. The demo pulls SDK
+assets from the Esri CDN (~17MB deployed); the container bundles them instead
+(~100MB) so it keeps working on networks that block `js.arcgis.com`.
 
 ---
 

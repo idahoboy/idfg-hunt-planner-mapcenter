@@ -131,7 +131,7 @@ Beyond the dead endpoints, these were live bugs in `src/dist/main.js`:
 
 | | Legacy | 5.0 |
 |---|---|---|
-| Map SDK | ArcGIS JS **3.28** (Dojo AMD, from CDN) | `@arcgis/core` **4.32** (ES modules, bundled) |
+| Map SDK | ArcGIS JS **3.28** (Dojo AMD, from CDN) | `@arcgis/core` **4.34.8** (ES modules, bundled) |
 | UI | jQuery 2.2.4 + jQuery UI + Bootstrap 3.3.7 + bootstrap-select | React 19 + TypeScript 5.7 |
 | Build | none (a 176KB hand-edited `main.js`) | Vite 6 |
 | State | globals and DOM ids | zustand |
