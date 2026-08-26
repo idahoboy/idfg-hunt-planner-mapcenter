@@ -157,6 +157,67 @@ assets from the Esri CDN (~17MB deployed); the container bundles them instead
 
 ---
 
+## Accessibility
+
+**Target: WCAG 2.2 Level AA**, which is what Section 508 incorporates by
+reference for a public agency. Where the brand palette and an accessibility
+requirement disagree, the requirement wins — the palette is adjusted, not the
+threshold.
+
+```bash
+npm run a11y:contrast
+```
+
+Audits every colour pair the stylesheet actually paints, in **both** light and
+dark, and exits non-zero on a failure. This exists because the theme is
+config-driven: a rebrand is a config edit, which means it is also one edit away
+from shipping an inaccessible palette. The check is the guardrail.
+
+It caught seven failures when the IDFG prospectus palette was applied — worth
+recording, because they are the failures brand palettes always produce:
+
+| Pair | Was | Needed |
+|---|---|---|
+| Control borders on white | 1.50:1 | 3:1 (SC 1.4.11) |
+| Active control border, gold | 1.83:1 | 3:1 |
+| Focus ring on white | 2.65:1 | 3:1 |
+| Focus ring on panel | 2.33:1 | 3:1 |
+| White text on gold button | 1.94:1 | 4.5:1 (SC 1.4.3) |
+| White text on dark-mode danger | 2.44:1 | 4.5:1 |
+| Navy icon on dark-mode surface | 1.15:1 | 3:1 |
+
+The fix was four extra tokens rather than abandoning the brand:
+
+| Token | Why it exists |
+|---|---|
+| `accentInk` | Gold works as a **fill** and fails as **text**. Anything gold that carries meaning as text uses this instead. |
+| `accentBorder` | Same problem for outlines: the gold that reads beautifully as a keyline on navy is invisible as a border on white. |
+| `borderStrong` | Separates decoration from control boundaries. A divider may be faint; anything that *outlines a control* must clear 3:1. |
+| `dangerInk` | The dark-mode danger colour is a light red, so text on it has to be dark. One token, two correct answers. |
+| `focusRingInverse` | A single focus colour cannot pass on both white and navy. Chrome uses the inverse. |
+
+Beyond colour:
+
+- **Never colour alone** (SC 1.4.1). Access grades pair a colour with a written
+  label; layer state pairs the swatch with a checkbox.
+- **Focus is always visible** — `:focus-visible` with a 2px ring and offset,
+  never `outline: none`.
+- **The map is not the only route to the data.** Every hunt reachable on the map
+  is reachable in the results list, which is ordinary focusable HTML. This
+  matters more than any contrast ratio: a map is not operable by screen reader,
+  and the list is the accessible equivalent rather than a convenience.
+- **Result counts announce** via `aria-live`, so filtering is perceivable
+  without sight of the list.
+- **Motion respects `prefers-reduced-motion`.**
+
+Run everything before shipping:
+
+```bash
+npm run verify
+```
+
+---
+
 ## Mobile
 
 Below `ui.layout.mobileBreakpoint` (768px) the shell switches to the pattern

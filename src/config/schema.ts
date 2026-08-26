@@ -244,6 +244,7 @@ export const AppConfigSchema = z.object({
   tools: z.record(z.string(), z.record(z.string(), z.unknown())),
   ui: z.object({
     theme: z.record(z.string(), z.string()),
+    themeDark: z.record(z.string(), z.string()).optional(),
     layout: z.record(z.string(), z.number()),
     darkMode: z.enum(['auto', 'light', 'dark']).default('auto'),
     reduceMotionRespected: z.boolean().default(true),

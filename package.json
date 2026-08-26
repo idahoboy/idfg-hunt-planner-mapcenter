@@ -16,7 +16,9 @@
     "config:validate": "node scripts/validate-config.mjs config/app.config.yml",
     "config:health": "node scripts/validate-config.mjs config/app.config.yml --probe",
     "deploy:pages": "bash scripts/deploy-pages.sh",
-    "build:inventory": "node scripts/build-inventory.mjs"
+    "build:inventory": "node scripts/build-inventory.mjs",
+    "a11y:contrast": "node scripts/check-contrast.mjs",
+    "verify": "npm run config:validate && npm run a11y:contrast && tsc -b --noEmit"
   },
   "dependencies": {
     "@arcgis/core": "^4.32.0",

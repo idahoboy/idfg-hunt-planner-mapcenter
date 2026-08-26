@@ -1500,14 +1500,40 @@ ui:
     accent: "#E9B94B"         # gold — keylines, active states, fills
     accentDark: "#C9971F"
     accentInk: "#8A6410"      # gold dark enough to be TEXT on a light surface
+    accentBorder: "#8A6410"   # active control outlines — gold fails 3:1 as a border
     surface: "#FFFFFF"
     surfaceAlt: "#EDF1F6"     # pale blue-grey panel
     panel: "#DCE3EC"
-    border: "#C9D4E0"
+    border: "#C9D4E0"         # decorative separators only
+    borderStrong: "#6E8598"   # anything that OUTLINES A CONTROL — WCAG 1.4.11
     text: "#14202B"
     textMuted: "#55636F"
     danger: "#B3261E"
-    focusRing: "#C9971F"
+    dangerInk: "#FFFFFF"      # text that sits on a danger fill
+    focusRing: "#8A6410"
+    focusRingInverse: "#F2CE79"   # focus on navy chrome, where the dark ring vanishes
+  # Dark palette. Declared here rather than in the stylesheet so the contrast
+  # checker can audit both themes from one source — see npm run a11y:contrast.
+  themeDark:
+    primary: "#12283C"
+    primaryDark: "#0B1B29"
+    primaryMid: "#4E86AC"
+    accent: "#E9B94B"
+    accentDark: "#F0CB77"
+    accentInk: "#F2CE79"      # on a dark ground the light gold IS the text colour
+    accentBorder: "#E9B94B"
+    surface: "#101C26"
+    surfaceAlt: "#16242F"
+    panel: "#1B2C39"
+    border: "#3A4C5B"
+    borderStrong: "#6B8296"
+    text: "#E9EFF4"
+    textMuted: "#A8B8C6"
+    danger: "#F2887E"
+    dangerInk: "#2A0D0A"      # the dark-mode danger is a light red; white on it fails
+    focusRing: "#F2CE79"
+    focusRingInverse: "#F2CE79"
+
   layout:
     filterBarHeight: 68
     resultsRailWidth: 400

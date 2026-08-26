@@ -25,18 +25,41 @@ function renderFatal(title: string, detail: string): void {
   );
 }
 
-function applyTheme(theme: Record<string, string>): void {
+const cssVar = (key: string): string =>
+  `--hp-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+
+/**
+ * Both palettes come from the config so a rebrand is a config edit — and so
+ * `npm run a11y:contrast` can audit light and dark from one source of truth.
+ * The dark set is injected as a rule rather than set inline, because inline
+ * styles cannot be scoped to a media query or a [data-theme] attribute.
+ */
+function applyTheme(
+  theme: Record<string, string>,
+  dark?: Record<string, string>,
+): void {
   const style = document.documentElement.style;
   for (const [key, value] of Object.entries(theme)) {
-    style.setProperty(`--hp-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`, value);
+    style.setProperty(cssVar(key), value);
   }
+  if (!dark) return;
+
+  const body = Object.entries(dark)
+    .map(([key, value]) => `${cssVar(key)}:${value};`)
+    .join('');
+  const el = document.createElement('style');
+  el.id = 'hp-theme-dark';
+  el.textContent =
+    `@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${body}}}` +
+    `:root[data-theme="dark"]{${body}}`;
+  document.head.append(el);
 }
 
 void (async () => {
   try {
     const { config, rejectedLayers, disabledLayers } = await loadConfig();
     configureEsri(config);
-    applyTheme(config.ui.theme);
+    applyTheme(config.ui.theme, config.ui.themeDark);
     document.title = `${config.app.title} — ${config.app.subtitle ?? 'Map'}`;
 
     // Seed filter state from the URL before the first render so a shared link
