@@ -442,6 +442,55 @@ those hunts cannot be mapped today.
 
 ---
 
+## A distinction I had wrong: units are not hunts
+
+I had a filter option labelled "General season units" pointing at the Game
+Management Unit layer, which quietly asserts that a unit *is* a general hunt.
+It is not.
+
+| | What it is | Where it lives |
+|---|---|---|
+| **Game Management Unit** | An authoritative geographic boundary | `Hunting/MapServer/3` — a real data layer |
+| **General season hunt** | A hunt defined in the seasons brochure that **references** one or more units | The brochure; API 1.1 `type=1` is a queryable view of it |
+| **Controlled hunt** | A hunt whose area *is* a named hunt area with its own polygon | API 1.1 `type=2`, joins to `Hunting/MapServer/4` |
+
+**The authoritative source for every season is the PDF at
+<https://idfg.idaho.gov/rules>.** API 1.1 is a derived view of it, not the
+record itself. Anything the application asserts about a season should be
+traceable to the brochure, and the AI guardrails already say the booklet
+governs — this is why.
+
+### The general-hunt to GMU join
+
+General hunts name their units in prose, and it is remarkably consistent:
+**558 of 561 (99%) name at least one unit.**
+
+```
+"Unit 9"                                        -> 9
+"Unit 4A"                                       -> 4A
+"Portion of Unit 50"                            -> 50
+"Unit 2, except Farragut SP"                    -> 2
+"Private land in Units 46, 47, 54, 55, 56, 57"  -> 46, 47, 54, 55, 56, 57
+```
+
+The snapshot now extracts these into `unitsReferenced`, so a general hunt can
+be drawn against the GMU layer. Two things it deliberately does **not** do:
+
+- It does not interpret qualifiers. **42 hunts** say *portion of*, *except*,
+  *private land*, *outside* or *within* — for those the polygon is an
+  overstatement of where you may hunt, and the text governs. They carry
+  `areaQualified: true` so the UI can say so rather than implying the whole
+  unit is open.
+- It does not treat the parsed list as authoritative. It records which units
+  the text *mentions*. The brochure remains the record.
+
+Also worth knowing: `tagArea` means different things by hunt type. On a
+general hunt it is the **tag** — "Regular Deer Tag", "White-tailed Deer Tag",
+"Pioneer A Tag". On a controlled hunt it is the **hunt area code**. Same field,
+two meanings.
+
+---
+
 ## Backlog
 
 ### Live attribution from layer metadata and the API

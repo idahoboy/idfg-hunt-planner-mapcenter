@@ -77,6 +77,27 @@ const RESTRICTIONS = [
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Game Management Units are an authoritative geographic layer. A general
+ * season hunt is NOT a unit — it is defined in the seasons brochure and
+ * *references* one or more units in prose: "Unit 9", "Portion of Unit 50",
+ * "Private land in Units 46, 47, 54, 55, 56 and 57".
+ *
+ * This extracts those references so a general hunt can be drawn against the
+ * GMU layer. It is parsed prose, not an authoritative key: the extracted list
+ * says which units the text mentions, and qualifiers like "Portion of" or
+ * "except Farragut SP" are deliberately NOT interpreted. The brochure at
+ * idfg.idaho.gov/rules governs.
+ */
+function unitsReferenced(area) {
+  if (!area) return [];
+  const m = /\bUnits?\b/i.exec(area);
+  if (!m) return [];
+  const tail = area.slice(m.index);
+  const found = tail.match(/\b\d+[A-Z]?\b/g) ?? [];
+  return [...new Set(found)];
+}
+
 async function getJson(url, label) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -236,9 +257,13 @@ async function main() {
       permits: row.permits === 999999 ? null : row.permits,
       unlimited: row.permits === 999999,
       area,
-      // prose areas cannot be mapped to a polygon; the UI needs to know that
-      // so it can say "see the note" rather than silently showing nothing.
+      // prose areas cannot be mapped to a hunt-area polygon; the UI needs to
+      // know that so it can say "see the note" rather than showing nothing.
       areaIsCode: isAreaCode,
+      // GMUs the area text mentions. A reference, not an identity — and the
+      // qualifiers ("Portion of", "except ...") are not interpreted.
+      unitsReferenced: unitsReferenced(area),
+      areaQualified: /\b(portion|except|private|outside|within)\b/i.test(area),
       tagArea: row.tagarea,
       restrictions: codes,
       accessGrade: grade(codes),
@@ -249,6 +274,9 @@ async function main() {
   });
 
   const proseAreas = hunts.filter((h) => h.type === 'controlled' && h.area && !h.areaIsCode).length;
+  const generals = hunts.filter((h) => h.type === 'general');
+  const generalWithUnits = generals.filter((h) => h.unitsReferenced.length > 0).length;
+  const generalQualified = generals.filter((h) => h.areaQualified).length;
   const unreferenced = [...areaIndex.keys()].filter((k) => !referenced.has(k));
   const byGrade = hunts.reduce(
     (acc, h) => ((acc[h.accessGrade] = (acc[h.accessGrade] ?? 0) + 1), acc),
@@ -280,6 +308,8 @@ async function main() {
         return { species, area, candidates: ids };
       }),
       proseAreaHunts: proseAreas,
+      generalHuntsReferencingUnits: generalWithUnits,
+      generalHuntsWithQualifiedArea: generalQualified,
       unreferencedGisAreas: unreferenced.length,
       unusedRestrictionCodes: unused,
     },
@@ -300,6 +330,8 @@ async function main() {
   console.log('\nDATA QUALITY');
   console.log(`  unmappable hunts       ${unmappable.length}`);
   console.log(`  prose areas (no code)  ${proseAreas} — describe their area in words, not a code`);
+  console.log(`  general -> GMU refs     ${generalWithUnits} of ${generals.length} general hunts name a unit`);
+  console.log(`  qualified areas         ${generalQualified} say "portion of" / "except" / "private" — text governs, not the polygon`);
   console.log(`  ambiguous areas        ${ambiguous.size}`);
   console.log(`  unreferenced in GIS    ${unreferenced.length} (historical, never drawn)`);
   console.log(`  unused restriction codes ${unused.join(', ') || 'none'}`);

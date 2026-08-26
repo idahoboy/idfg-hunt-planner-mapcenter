@@ -1126,6 +1126,10 @@ huntFinder:
         Furbearer: Beaver
 
     - id: game-units
+      # An authoritative boundary layer, NOT a list of general season hunts.
+      # General hunts are defined in the seasons brochure and reference these
+      # units by name; once the inventory is wired in they become their own
+      # source and this stays what it is — the units themselves.
       title: Game Management Units
       kind: unit
       url: ${roots.idfgRest}/Hunting/MapServer/3
@@ -1255,7 +1259,7 @@ huntFinder:
       primary: true
       source: static
       options:
-        - { value: unit, label: General season units, sources: [game-units] }
+        - { value: unit, label: Game management units, sources: [game-units] }
         - { value: controlled, label: Controlled hunts, sources: [controlled-hunts] }
         - { value: zone, label: Elk zones, sources: [elk-zones] }
         - { value: waterfowl, label: Waterfowl areas, sources: [waterfowl-areas] }
