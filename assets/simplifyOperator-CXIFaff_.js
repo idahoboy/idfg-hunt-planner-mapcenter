@@ -1,0 +1,1 @@
+import{h5 as s,h6 as n,hC as o,h7 as c,hD as f,hE as i}from"./index-9_ETgfbS.js";function p(t){const e=s(t),a=e.getSpatialReference();return n(o(e.getGeometry(),a,!1),a)}function h(t){const[e,a]=c(t);return f(e,a,!1).map(r=>n(r,a))}function l(t){const e=s(t);return i(e.getGeometry(),e.getSpatialReference(),!1)}export{p as execute,h as executeMany,l as isSimple};

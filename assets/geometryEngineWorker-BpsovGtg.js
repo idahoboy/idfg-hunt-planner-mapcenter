@@ -1,0 +1,1 @@
+import{O as t}from"./geometryEngineJSON-CONipEa3.js";import"./geometryEngineBase-C_m2LtP8.js";import"./index-9_ETgfbS.js";function i(r){return(0,t[r.operation])(...r.parameters)}export{i as executeGEOperation};

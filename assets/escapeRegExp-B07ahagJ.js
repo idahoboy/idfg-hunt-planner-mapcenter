@@ -1,0 +1,1 @@
+function e(r){return r.replace(/[\\^$.*+?()[\]{}|]/g,"\\$&")}function i(r){return r==null?"":t(r)}function t(r){if(typeof r=="string")return r;if(Array.isArray(r))return r.map(t).join(",");const n=String(r);return n==="0"&&Object.is(Number(r),-0)?"-0":n}function o(r){return e(i(r))}export{o as e};
