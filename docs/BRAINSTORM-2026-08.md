@@ -442,6 +442,47 @@ those hunts cannot be mapped today.
 
 ---
 
+## Backlog
+
+### Live attribution from layer metadata and the API
+
+The Esri SDK already reserves a place for this: `MapView` renders an
+`Attribution` widget, and every layer carries `copyright` plus
+`attributionDataUrl`, which the SDK fetches and merges automatically as layers
+come and go. Today the app shows only whatever the basemap supplies —
+"Esri, HERE, Garmin, FAO, NOAA, USGS, EPA, NPS" — which credits the basemap and
+nothing else, while the substantive data comes from BLM, USFS, IDL, IDPR, NIFC
+and IDFG's own services.
+
+The work: populate `copyright` on every layer from the config, so attribution
+follows visible layers rather than the basemap alone, and add the Hunt Planner
+API to it once the inventory is wired in.
+
+Worth doing because it is three things at once:
+
+- **Provenance.** A hunter reading a boundary should be able to see whose
+  boundary it is. Several of the restored layers are other agencies' data.
+- **Compliance.** Some of these services carry attribution requirements in
+  their terms; the current app is arguably not meeting them.
+- **A data-quality surface.** Attribution derived from live metadata goes
+  visibly stale when a service is repointed or dies — the same early warning
+  the service-health panel gives, in front of the user rather than an admin.
+
+Config sketch, alongside the existing `disclaimer` block:
+
+```yaml
+  - id: surface-management
+    attribution: "Surface management: US Bureau of Land Management"
+    attributionUrl: https://www.blm.gov/services/geospatial
+```
+
+Two details to get right: the widget must stay legible against the map, which
+means the accessible-contrast rules apply to it as much as to the chrome; and
+attribution should list only layers actually **visible**, since a list of all
+45 would be noise rather than credit.
+
+---
+
 ## Errata — errors and data gaps found
 
 Observed directly against live services on 25–26 August 2026. **fixed** items are
