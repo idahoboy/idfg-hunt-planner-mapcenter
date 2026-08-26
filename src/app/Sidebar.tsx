@@ -1,5 +1,6 @@
 import { useConfig } from '@/config/ConfigContext';
-import { useAppStore, type ToolId } from '@/state/store';
+import { useAppStore } from '@/state/store';
+import { toolEntries } from './toolEntries';
 import { Icon } from '@/components/Icon';
 import { LayersPanel } from '@/features/layers/LayersPanel';
 import { BasemapPanel } from '@/features/layers/BasemapPanel';
@@ -11,13 +12,6 @@ import { DrawPanel } from '@/features/draw/DrawPanel';
 import { PrintPanel } from '@/features/print/PrintPanel';
 import { SharePanel } from '@/features/share/SharePanel';
 import { HealthPanel } from '@/features/help/HealthPanel';
-
-interface ToolEntry {
-  id: Exclude<ToolId, null>;
-  label: string;
-  icon: string;
-  render: () => React.ReactElement;
-}
 
 const PANELS: Record<string, () => React.ReactElement> = {
   layers: LayersPanel,
@@ -42,28 +36,10 @@ export function Sidebar(): React.ReactElement {
   const resultsOpen = useAppStore((s) => s.resultsOpen);
   const setResultsOpen = useAppStore((s) => s.setResultsOpen);
 
-  const base: Array<Omit<ToolEntry, 'render'>> = [
-    { id: 'huntFinder', label: 'Results', icon: 'search' },
-    { id: 'layers', label: 'Layers', icon: 'layers' },
-    { id: 'basemap', label: 'Basemap', icon: 'globe' },
-    { id: 'highlight', label: 'Highlight', icon: 'bolt' },
-    { id: 'search', label: 'Find place', icon: 'crosshair' },
-    { id: 'upload', label: 'Upload', icon: 'upload' },
-    { id: 'measure', label: 'Measure', icon: 'ruler' },
-    { id: 'draw', label: 'Draw', icon: 'pencil' },
-    { id: 'print', label: 'Print', icon: 'printer' },
-    { id: 'share', label: 'Share', icon: 'link' },
-    ...(config.diagnostics.healthPanel
-      ? [{ id: 'health' as const, label: 'Service health', icon: 'alert' }]
-      : []),
-  ];
-
-  const entries: ToolEntry[] = base
-    .filter((entry) => {
-      const tool = config.tools[entry.id] as { enabled?: boolean } | undefined;
-      return entry.id === 'health' || tool?.enabled !== false;
-    })
-    .map((entry) => ({ ...entry, render: PANELS[entry.id] ?? (() => <></>) }));
+  const entries = toolEntries(config).map((entry) => ({
+    ...entry,
+    render: PANELS[entry.id] ?? ((): React.ReactElement => <></>),
+  }));
 
   const active = entries.find((e) => e.id === activeTool && e.id !== 'huntFinder');
   const Panel = active?.render;

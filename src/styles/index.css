@@ -617,16 +617,194 @@ body {
 }
 
 @media (max-width: 768px) {
-  .hp-body { flex-direction: column; }
-  .hp-sidebar { flex-direction: column; width: 100%; }
-  .hp-toolrail { width: 100%; border-right: 0; border-bottom: 1px solid var(--hp-border); }
-  .hp-toolrail ul { display: flex; overflow-x: auto; padding: 4px; }
-  .hp-toolrail__btn { min-width: 68px; border-left: 0; border-bottom: 3px solid transparent; }
-  .hp-toolrail__btn.is-active { border-left: 0; border-bottom-color: var(--hp-accent); }
-  .hp-toolpanel, .hp-results {
-    width: 100%; max-height: 45vh; border-right: 0;
-    border-bottom: 1px solid var(--hp-border);
+  /* ---------------------------------------------------------------------
+   * Mobile shell.
+   *
+   * The map and the results list each take the whole screen and are swapped
+   * by a floating pill; the list is layered over the map rather than replacing
+   * it, so the MapView is never torn down and rebuilt. Filters collapse to one
+   * scrolling row with everything else behind a sheet, and the tool rail — a
+   * permanent strip on desktop — becomes a button that opens a grid.
+   * ------------------------------------------------------------------- */
+
+  /* the mobile bar is a single 38px row, not the 68px desktop stack */
+  .hp-app--mobile { --hp-filterbar-h: 54px; }
+
+  .hp-body { position: relative; flex-direction: column; }
+
+  /* the map fills the shell and stays mounted underneath everything */
+  .hp-mapwrap { position: absolute; inset: 0; min-height: 0; }
+
+  /* the desktop tool rail has no place on a phone */
+  .hp-app--mobile .hp-toolrail { display: none; }
+
+  /* a tool panel takes over the screen instead of splitting it */
+  .hp-app--mobile .hp-sidebar { position: static; width: auto; }
+  .hp-app--mobile .hp-toolpanel {
+    position: fixed;
+    inset: auto 0 0 0;
+    top: calc(var(--hp-header-h) + var(--hp-filterbar-h));
+    width: 100%;
+    max-height: none;
+    border: 0;
+    border-top: 1px solid var(--hp-border);
+    z-index: 40;
+    box-shadow: 0 -6px 24px rgb(0 0 0 / 0.18);
   }
-  .hp-mapwrap { min-height: 45vh; }
-  .hp-facet--search { min-width: 100%; }
+
+  /* results are layered over the map, not beside it */
+  .hp-app--mobile .hp-results {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-height: none;
+    border: 0;
+    z-index: 20;
+  }
+  .hp-app--mobile .hp-results__scroll { padding-bottom: 84px; }
+
+  /* ----------------------------- filter bar ----------------------------- */
+  .hp-filterbar--mobile { padding: 8px 0; }
+  .hp-filterbar__scroller {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    overflow-x: auto;
+    padding: 0 12px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .hp-filterbar__scroller::-webkit-scrollbar { display: none; }
+  .hp-filterbar__scroller > * { flex: 0 0 auto; }
+
+  .hp-filterbtn {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 38px; padding: 0 12px;
+    border: 1px solid var(--hp-border); border-radius: 999px;
+    background: var(--hp-surface); color: var(--hp-text);
+    font: inherit; font-size: 14px; cursor: pointer;
+  }
+  .hp-filterbtn.is-filled { border-color: var(--hp-accent); }
+  .hp-filterbtn__count {
+    display: inline-grid; place-items: center;
+    min-width: 20px; height: 20px; padding: 0 5px;
+    border-radius: 999px; background: var(--hp-accent); color: #fff;
+    font-size: 12px; font-weight: 700;
+  }
+
+  /* pills keep to one line and never grow taller than the row */
+  .hp-filterbar--mobile .hp-facet--select { position: static; }
+  .hp-filterbar--mobile .hp-facet__trigger { height: 38px; border-radius: 999px; }
+  .hp-filterbar--mobile .hp-facet__labels { flex-direction: row; align-items: baseline; gap: 5px; }
+  .hp-filterbar--mobile .hp-facet__label { font-size: 11px; }
+  .hp-filterbar--mobile .hp-facet__summary { max-width: 11ch; }
+  .hp-filterbar--mobile .hp-facet__badge { display: none; }
+
+  /* ------------------------------- sheets ------------------------------- */
+  .hp-scrim {
+    position: fixed; inset: 0; z-index: 45;
+    background: rgb(0 0 0 / 0.4);
+  }
+  .hp-sheet {
+    position: fixed; z-index: 50;
+    background: var(--hp-surface);
+    display: flex; flex-direction: column;
+  }
+  .hp-sheet--filters { inset: 0; }
+  .hp-sheet--tools {
+    inset: auto 0 0 0;
+    max-height: 70vh;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .hp-sheet__header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--hp-border);
+    flex-shrink: 0;
+  }
+  .hp-sheet__title { margin: 0; font-size: 17px; }
+  .hp-sheet__body { overflow-y: auto; flex: 1; padding: 4px 16px 16px; }
+  .hp-sheet__section { padding: 14px 0; border-bottom: 1px solid var(--hp-border); }
+  .hp-sheet__section:last-child { border-bottom: 0; }
+  .hp-sheet__label {
+    margin: 0 0 8px; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em; color: var(--hp-text-muted);
+  }
+  .hp-sheet__footer {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--hp-border); flex-shrink: 0;
+  }
+  .hp-sheet__footer .hp-btn--primary { flex: 1; height: 46px; font-size: 15px; }
+
+  /* facets rendered inline inside the sheet */
+  .hp-facet--block { display: block; width: 100%; }
+  .hp-facet__blockhead {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .hp-facet__blocklabel {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 700;
+  }
+  .hp-facet__blockoptions { max-height: 260px; overflow-y: auto; }
+  .hp-facet--block.hp-facet--toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hp-facet--block.hp-facet--toggles .hp-facet__blocklabel { width: 100%; margin-bottom: 4px; }
+  .hp-facet--search.hp-facet--block { width: 100%; }
+  .hp-switch--block { display: flex; align-items: center; gap: 10px; }
+  .hp-switch--block .hp-switch__label { display: inline; font-size: 14px; }
+
+  /* ------------------------------- tools -------------------------------- */
+  .hp-toolgrid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 8px; padding: 16px; overflow-y: auto;
+  }
+  .hp-toolgrid__btn {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 16px 8px;
+    border: 1px solid var(--hp-border); border-radius: var(--hp-radius);
+    background: var(--hp-surface); color: var(--hp-text);
+    font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .hp-toolgrid__btn:active { background: var(--hp-surface-alt); }
+
+  .hp-toolsfab {
+    position: absolute; right: 12px;
+    bottom: calc(74px + env(safe-area-inset-bottom));
+    z-index: 25;
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    border: 1px solid var(--hp-border); border-radius: 50%;
+    background: var(--hp-surface); color: var(--hp-text);
+    box-shadow: 0 2px 10px rgb(0 0 0 / 0.22); cursor: pointer;
+  }
+
+  /* --------------------------- map / list pill --------------------------- */
+  .hp-viewtoggle {
+    position: absolute; left: 50%;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 30;
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 46px; padding: 0 22px;
+    border: 0; border-radius: 999px;
+    background: var(--hp-text); color: var(--hp-surface);
+    font: inherit; font-size: 15px; font-weight: 600;
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.3); cursor: pointer;
+  }
+  .hp-viewtoggle:active { transform: translateX(-50%) scale(0.97); }
+
+  /* ------------------------------ trimming ------------------------------ */
+  .hp-coords { display: none; }
+  .hp-header__subtitle { font-size: 11px; }
+  /* keep Esri's attribution from sliding under the floating pill */
+  .hp-app--mobile .esri-attribution { padding-right: 0; font-size: 10px; }
+  .hp-app--mobile .esri-ui-bottom-left { display: none; }
+}
+
+/* Wider phones and small tablets: keep the sheet pattern but allow two
+   columns of tools and a roomier filter row. */
+@media (min-width: 480px) and (max-width: 768px) {
+  .hp-filterbar--mobile .hp-facet__summary { max-width: 16ch; }
 }

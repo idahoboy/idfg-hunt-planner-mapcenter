@@ -30,6 +30,21 @@ interface AppState {
   setActiveTool: (tool: ToolId) => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+
+  // ---- mobile shell ----
+  /**
+   * On a phone the map and the results list compete for the whole screen, so
+   * exactly one is shown at a time and a floating pill swaps between them.
+   * Ignored above the mobile breakpoint, where both are visible at once.
+   */
+  mobileView: 'map' | 'list';
+  setMobileView: (view: 'map' | 'list') => void;
+  /** Full-screen filter sheet; replaces the desktop filter bar on mobile. */
+  filterSheetOpen: boolean;
+  setFilterSheetOpen: (open: boolean) => void;
+  /** Bottom sheet holding the tool list; replaces the desktop tool rail. */
+  toolsSheetOpen: boolean;
+  setToolsSheetOpen: (open: boolean) => void;
   /** The results rail is independent of the tool panel: opening Layers should
    *  not throw away the search the user just built. */
   resultsOpen: boolean;
@@ -101,8 +116,17 @@ export const EMPTY_VALUES: readonly string[] = Object.freeze([]);
 export const useAppStore = create<AppState>((set) => ({
   activeTool: 'layers',
   setActiveTool: (activeTool) => set({ activeTool }),
-  sidebarOpen: true,
+  // On a phone a tool panel covers the whole screen, so opening one before the
+  // user asks would bury the map on first paint. Desktop has room for both.
+  sidebarOpen: typeof window === 'undefined' ? true : window.innerWidth > 768,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+
+  mobileView: 'map',
+  setMobileView: (mobileView) => set({ mobileView }),
+  filterSheetOpen: false,
+  setFilterSheetOpen: (filterSheetOpen) => set({ filterSheetOpen }),
+  toolsSheetOpen: false,
+  setToolsSheetOpen: (toolsSheetOpen) => set({ toolsSheetOpen }),
   resultsOpen: true,
   setResultsOpen: (resultsOpen) => set({ resultsOpen }),
 

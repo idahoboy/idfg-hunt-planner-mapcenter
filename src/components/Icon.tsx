@@ -29,6 +29,8 @@ const PATHS: Record<string, string> = {
   alert: 'M12 3 2 20h20L12 3Zm0 6v5m0 3h.01',
   info: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 5h.01M11 11h2v6h-2v-6Z',
   filter: 'M3 5h18l-7 8v6l-4 2v-8L3 5Z',
+  sliders: 'M4 6h10m4 0h2M4 12h2m4 0h10M4 18h10m4 0h2M14 6a2 2 0 1 0 4 0 2 2 0 0 0-4 0ZM6 12a2 2 0 1 0 4 0 2 2 0 0 0-4 0Zm8 6a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
   refresh: 'M20 11a8 8 0 1 0-2 6m2 2v-6h-6',
 };
 

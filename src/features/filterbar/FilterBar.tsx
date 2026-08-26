@@ -3,6 +3,7 @@ import { useConfig } from '@/config/ConfigContext';
 import { useAppStore } from '@/state/store';
 import { Icon } from '@/components/Icon';
 import { FacetControl } from './FacetControl';
+import { useMediaQuery } from '@/lib/useMediaQuery';
 
 /**
  * VRBO-style top filter bar: primary facets always visible, everything else
@@ -12,6 +13,10 @@ import { FacetControl } from './FacetControl';
 export function FilterBar(): React.ReactElement | null {
   const config = useConfig();
   const [moreOpen, setMoreOpen] = useState(false);
+  const isMobile = useMediaQuery(
+    `(max-width: ${config.ui.layout['mobileBreakpoint'] ?? 768}px)`,
+  );
+  const setFilterSheetOpen = useAppStore((s) => s.setFilterSheetOpen);
 
   const filters = useAppStore((s) => s.filters);
   const keyword = useAppStore((s) => s.keyword);
@@ -40,6 +45,43 @@ export function FilterBar(): React.ReactElement | null {
     ),
     ...(keyword ? [{ facetId: '__keyword', value: keyword, facetLabel: 'Search', label: keyword }] : []),
   ];
+
+  const activeCount =
+    Object.values(filters).reduce((n, v) => n + v.length, 0) + (keyword ? 1 : 0);
+
+  /*
+   * Mobile: a single horizontally scrolling row, never more than one line tall.
+   * The leading button opens the full-screen sheet holding every facet; the
+   * primary facets stay inline as pills so the common narrowing (species, unit,
+   * region) is one tap rather than two. The result count is not here — it lives
+   * on the Map/List pill and in the results header, where there is room for it.
+   */
+  if (isMobile) {
+    return (
+      <div className="hp-filterbar hp-filterbar--mobile">
+        <div className="hp-filterbar__scroller">
+          <button
+            type="button"
+            className={`hp-filterbtn${activeCount ? ' is-filled' : ''}`}
+            onClick={() => setFilterSheetOpen(true)}
+            aria-label={
+              activeCount ? `Filters, ${activeCount} active` : 'Filters'
+            }
+          >
+            <Icon name="sliders" size={17} />
+            {activeCount > 0 ? (
+              <span className="hp-filterbtn__count">{activeCount}</span>
+            ) : null}
+            <Icon name="chevronDown" size={13} />
+          </button>
+
+          {primary.map((facet) => (
+            <FacetControl key={facet.id} facet={facet} config={config} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="hp-filterbar">

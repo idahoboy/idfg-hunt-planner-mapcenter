@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useConfig } from '@/config/ConfigContext';
 import { useAppStore } from '@/state/store';
 import { MapProvider, MapCanvas } from '@/map/MapProvider';
@@ -12,6 +13,10 @@ import { useHuntSearch } from '@/features/results/useHuntSearch';
 import { useResultInteraction } from '@/features/results/useResultInteraction';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useUrlSync } from './useUrlSync';
+import { FilterSheet } from '@/features/filterbar/FilterSheet';
+import { MobileViewToggle, ToolsSheet, ToolsButton } from './MobileShell';
+import { toolEntries } from './toolEntries';
+import { useMediaQuery } from '@/lib/useMediaQuery';
 
 /** Hooks that need the map context live here, inside <MapProvider>. */
 function MapWiring(): null {
@@ -25,11 +30,37 @@ function MapWiring(): null {
 export function App(): React.ReactElement {
   const config = useConfig();
   const resultsOpen = useAppStore((s) => s.resultsOpen);
-  const showFinder = config.huntFinder.enabled && resultsOpen;
+  const mobileView = useAppStore((s) => s.mobileView);
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen);
+  const activeTool = useAppStore((s) => s.activeTool);
+  const isMobile = useMediaQuery(
+    `(max-width: ${config.ui.layout['mobileBreakpoint'] ?? 768}px)`,
+  );
+
+  // Crossing into mobile, dismiss whatever was open on the desktop layout:
+  // a tool panel and a sheet would otherwise stack on top of each other.
+  const wasMobile = useRef(isMobile);
+  const setSidebarOpen = useAppStore((s) => s.setSidebarOpen);
+  const setFilterSheetOpen = useAppStore((s) => s.setFilterSheetOpen);
+  const setToolsSheetOpen = useAppStore((s) => s.setToolsSheetOpen);
+  useEffect(() => {
+    if (isMobile && !wasMobile.current) setSidebarOpen(false);
+    if (!isMobile && wasMobile.current) {
+      setFilterSheetOpen(false);
+      setToolsSheetOpen(false);
+    }
+    wasMobile.current = isMobile;
+  }, [isMobile, setSidebarOpen, setFilterSheetOpen, setToolsSheetOpen]);
+
+  // Mobile shows exactly one of map/list; desktop shows both side by side.
+  const showFinder = config.huntFinder.enabled && (isMobile ? mobileView === 'list' : resultsOpen);
+  // A tool panel is open over the map only when a tool other than the finder
+  // is selected — on mobile that panel is a sheet, so it also hides the pill.
+  const toolPanelOpen = isMobile && sidebarOpen && activeTool !== null && activeTool !== 'huntFinder';
 
   return (
     <MapProvider>
-      <div className="hp-app">
+      <div className={`hp-app${isMobile ? ' hp-app--mobile' : ''}`} data-mobile-view={mobileView}>
         <Header />
         {config.huntFinder.enabled ? <FilterBar /> : null}
 
@@ -43,6 +74,19 @@ export function App(): React.ReactElement {
             <CoordinateReadout />
           </main>
         </div>
+
+        {isMobile ? (
+          <>
+            <FilterSheet />
+            <ToolsSheet entries={toolEntries(config)} />
+            {!toolPanelOpen ? (
+              <>
+                {mobileView === 'map' ? <ToolsButton /> : null}
+                <MobileViewToggle />
+              </>
+            ) : null}
+          </>
+        ) : null}
 
         <MapWiring />
         <Toast />

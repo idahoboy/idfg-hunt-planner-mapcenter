@@ -8,9 +8,20 @@ import { Popover } from '@/components/Popover';
 interface FacetControlProps {
   facet: FacetConfig;
   config: AppConfig;
+  /**
+   * `pill` is the filter-bar form: a compact trigger that opens a popover.
+   * `block` is the sheet form: a labelled, full-width control with its options
+   * expanded inline, because a popover inside a full-screen sheet on a phone is
+   * a dropdown inside a dropdown.
+   */
+  variant?: 'pill' | 'block';
 }
 
-export function FacetControl({ facet, config }: FacetControlProps): React.ReactElement {
+export function FacetControl({
+  facet,
+  config,
+  variant = 'pill',
+}: FacetControlProps): React.ReactElement {
   const triggerId = useId();
   const [open, setOpen] = useState(false);
   const [filterText, setFilterText] = useState('');
@@ -33,7 +44,7 @@ export function FacetControl({ facet, config }: FacetControlProps): React.ReactE
   // ---- free-text search facet ----
   if (facet.type === 'search') {
     return (
-      <div className="hp-facet hp-facet--search">
+      <div className={`hp-facet hp-facet--search${variant === 'block' ? ' hp-facet--block' : ''}`}>
         <Icon name={facet.icon ?? 'search'} size={16} className="hp-facet__leading-icon" />
         <label className="hp-visually-hidden" htmlFor={triggerId}>{facet.label}</label>
         <input
@@ -57,7 +68,14 @@ export function FacetControl({ facet, config }: FacetControlProps): React.ReactE
   // ---- segmented toggle group ----
   if (facet.type === 'toggleGroup') {
     return (
-      <div className="hp-facet hp-facet--toggles" role="group" aria-label={facet.label}>
+      <div
+        className={`hp-facet hp-facet--toggles${variant === 'block' ? ' hp-facet--block' : ''}`}
+        role="group"
+        aria-label={facet.label}
+      >
+        {variant === 'block' ? (
+          <span className="hp-facet__blocklabel">{facet.label}</span>
+        ) : null}
         {(facet.options ?? []).map((option) => {
           const active = selected.includes(option.value);
           return (
@@ -84,6 +102,80 @@ export function FacetControl({ facet, config }: FacetControlProps): React.ReactE
       : selected.length === 1
         ? selected[0]!
         : `${selected.length} selected`;
+
+  const optionList = (
+    <ul className="hp-option-list" role={isMulti ? 'group' : 'radiogroup'}>
+      {visibleOptions.map((option) => {
+        const active = selected.includes(option.value);
+        return (
+          <li key={option.value}>
+            <button
+              type="button"
+              className={`hp-option${active ? ' is-active' : ''}`}
+              role={isMulti ? 'checkbox' : 'radio'}
+              aria-checked={active}
+              onClick={() => {
+                if (isMulti) toggleFilterValue(facet.id, option.value);
+                else {
+                  setFilter(facet.id, active ? [] : [option.value]);
+                  setOpen(false);
+                }
+              }}
+            >
+              <span className="hp-option__box" aria-hidden="true">
+                {active ? <Icon name="check" size={12} /> : null}
+              </span>
+              <span className="hp-option__label">{option.label}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  const status = (
+    <>
+      {loading ? <p className="hp-popover__status">Loading options…</p> : null}
+      {error ? <p className="hp-popover__status hp-popover__status--error">{error}</p> : null}
+      {!loading && !error && visibleOptions.length === 0 ? (
+        <p className="hp-popover__status">No options.</p>
+      ) : null}
+    </>
+  );
+
+  // A popover trigger inside a full-screen sheet is a dropdown inside a
+  // dropdown, so the sheet expands its options inline instead.
+  if (variant === 'block') {
+    return (
+      <div className="hp-facet hp-facet--select hp-facet--block">
+        <div className="hp-facet__blockhead">
+          <span className="hp-facet__blocklabel">
+            {facet.icon ? <Icon name={facet.icon} size={15} /> : null}
+            {facet.label}
+          </span>
+          {selected.length ? (
+            <button type="button" className="hp-link" onClick={() => clearFilter(facet.id)}>
+              Clear ({selected.length})
+            </button>
+          ) : null}
+        </div>
+
+        {options.length > 8 ? (
+          <input
+            type="search"
+            className="hp-popover__filter"
+            placeholder={`Filter ${facet.label.toLowerCase()}…`}
+            value={filterText}
+            onChange={(e) => setFilterText(e.target.value)}
+            aria-label={`Filter ${facet.label} options`}
+          />
+        ) : null}
+
+        {status}
+        <div className="hp-facet__blockoptions">{optionList}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="hp-facet hp-facet--select">
@@ -136,39 +228,8 @@ export function FacetControl({ facet, config }: FacetControlProps): React.ReactE
           />
         ) : null}
 
-        {loading ? <p className="hp-popover__status">Loading options…</p> : null}
-        {error ? <p className="hp-popover__status hp-popover__status--error">{error}</p> : null}
-        {!loading && !error && visibleOptions.length === 0 ? (
-          <p className="hp-popover__status">No options.</p>
-        ) : null}
-
-        <ul className="hp-option-list" role={isMulti ? 'group' : 'radiogroup'}>
-          {visibleOptions.map((option) => {
-            const active = selected.includes(option.value);
-            return (
-              <li key={option.value}>
-                <button
-                  type="button"
-                  className={`hp-option${active ? ' is-active' : ''}`}
-                  role={isMulti ? 'checkbox' : 'radio'}
-                  aria-checked={active}
-                  onClick={() => {
-                    if (isMulti) toggleFilterValue(facet.id, option.value);
-                    else {
-                      setFilter(facet.id, active ? [] : [option.value]);
-                      setOpen(false);
-                    }
-                  }}
-                >
-                  <span className="hp-option__box" aria-hidden="true">
-                    {active ? <Icon name="check" size={12} /> : null}
-                  </span>
-                  <span className="hp-option__label">{option.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        {status}
+        {optionList}
       </Popover>
     </div>
   );

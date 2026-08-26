@@ -157,6 +157,28 @@ assets from the Esri CDN (~17MB deployed); the container bundles them instead
 
 ---
 
+## Mobile
+
+Below `ui.layout.mobileBreakpoint` (768px) the shell switches to the pattern
+travel apps use, because the desktop layout does not survive a phone: the
+filter bar wrapped onto four rows and the tool rail became a scrolling band,
+between them pushing the map off the bottom of the screen.
+
+| Desktop | Mobile |
+|---|---|
+| Filter bar: primary facets + "More filters" + count | One horizontally scrolling row: a filters button with an active count, then the primary facets as pills |
+| All other facets in a drop-down row | Full-screen filter sheet, options expanded inline (a popover inside a sheet is a dropdown inside a dropdown) |
+| Results rail beside the map | Results layered over the map, swapped by a floating **Map / List (n)** pill |
+| Tool rail always visible down the left | A button on the map opens a tool grid; the chosen panel takes the screen |
+| Zoom, Home, Locate, Compass, Fullscreen | Locate only — pinch zooms, the device reports heading, the browser owns fullscreen |
+
+The MapView is never unmounted when the list is showing; the list is layered
+over it. Toggling would otherwise cost a full basemap fetch and lose the extent
+the user was just looking at. Sheets respect `env(safe-area-inset-bottom)` so
+the pill clears the iOS home indicator.
+
+---
+
 ## Architecture
 
 ```
