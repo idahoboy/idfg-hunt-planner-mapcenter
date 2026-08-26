@@ -493,6 +493,43 @@ two meanings.
 
 ## Backlog
 
+### Group-level transparency
+
+Per-layer opacity already exists. What is missing is a master fader on each
+group, and with 45 layers that is the difference between one gesture and
+twelve.
+
+The case is the stacking problem: hunt boundaries over land ownership over fire
+perimeters is exactly the combination people need, and it is also opaque mud.
+Fading *a whole category* to see the one underneath is the actual task.
+Fading twelve layers individually to achieve it is not a feature, it is a chore.
+
+**Design decision that matters: group opacity multiplies, it does not
+override.**
+
+```
+effective = group.opacity × layer.opacity
+```
+
+A group slider is a master fader; the per-layer slider is trim. Multiplying
+preserves the relationships someone has already dialled in — pull the group to
+40% and the layer they had deliberately set to half stays half *of that*,
+rather than being flattened to a single value. Overriding would silently
+discard their work, and they would have to redo it every time they faded a
+group.
+
+Consequences to handle:
+
+- The per-layer slider should show its own value, not the effective one, or the
+  numbers stop making sense when the group moves.
+- `groups[].opacity` becomes a config default, so a group that is always
+  meant to sit behind — land management, for instance — can ship pre-faded.
+- Group opacity belongs in the share URL alongside layer visibility, or a
+  shared view will not look like what the sender saw.
+- Zero should be reachable but distinguishable from "off": a group faded to
+  nothing still reports its features on click, whereas a group switched off
+  does not. Worth making that visible rather than confusing.
+
 ### Make a map click answer a question
 
 Today a click returns whatever Esri's default popup finds: a feature from
