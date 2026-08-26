@@ -1,0 +1,1 @@
+import{t as n}from"./OperatorWithin-KDxWvM8a.js";import{h5 as r,hp as c}from"./index-DZh0gb46.js";const s=new n;function p(t,o){const e=r(t);return s.execute(e.getGeometry(),c(o),e.getSpatialReference(),null)}export{p as execute};
