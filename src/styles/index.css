@@ -5,17 +5,20 @@
    so rebranding is a config edit rather than a stylesheet edit.
    ========================================================================= */
 :root {
-  --hp-primary: #4a5231;
-  --hp-primary-dark: #333a20;
-  --hp-accent: #ff7200;
-  --hp-accent-dark: #d95f00;
+  --hp-primary: #0E3A5D;
+  --hp-primary-dark: #08283F;
+  --hp-primary-mid: #2F6183;
+  --hp-accent: #E9B94B;
+  --hp-accent-dark: #C9971F;
+  --hp-accent-ink: #8A6410;
   --hp-surface: #ffffff;
-  --hp-surface-alt: #f5f5f0;
-  --hp-border: #d9d9cc;
-  --hp-text: #1f2119;
-  --hp-text-muted: #5f6357;
-  --hp-danger: #c1121f;
-  --hp-focus-ring: #ff7200;
+  --hp-surface-alt: #EDF1F6;
+  --hp-panel: #DCE3EC;
+  --hp-border: #C9D4E0;
+  --hp-text: #14202B;
+  --hp-text-muted: #55636F;
+  --hp-danger: #B3261E;
+  --hp-focus-ring: #C9971F;
 
   --hp-radius: 10px;
   --hp-radius-sm: 6px;
@@ -26,16 +29,21 @@
   --hp-rail-w: 400px;
   --hp-toolrail-w: 72px;
   --hp-panel-w: 380px;
-  --hp-font: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Mulish is the closest freely-licensed analogue to the Museo-style
+     geometric sans used throughout the prospectus. */
+  --hp-font: 'Mulish', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --hp-font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --hp-surface: #1b1d17;
-    --hp-surface-alt: #24261e;
-    --hp-border: #3b3e33;
-    --hp-text: #eceade;
-    --hp-text-muted: #a5a898;
+    --hp-surface: #101C26;
+    --hp-surface-alt: #16242F;
+    --hp-panel: #1B2C39;
+    --hp-border: #2A3B48;
+    --hp-text: #E6ECF2;
+    --hp-text-muted: #9AAAB8;
+    --hp-accent-ink: #E9B94B;   /* on a dark ground the bright gold IS the text colour */
     --hp-shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.5);
   }
 }
@@ -101,6 +109,8 @@ body {
   background: var(--hp-primary);
   color: #fff;
   flex-shrink: 0;
+  /* the thin gold keyline that runs under every navy block in the prospectus */
+  box-shadow: inset 0 -2px 0 var(--hp-accent);
 }
 .hp-header__brand {
   display: flex; align-items: center; gap: 10px;
@@ -141,6 +151,8 @@ body {
 }
 .hp-filterbar__spacer { flex: 1; }
 .hp-filterbar__count {
+  font-family: var(--hp-font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: 700; font-size: 14px; white-space: nowrap;
   color: var(--hp-primary);
 }
@@ -261,7 +273,7 @@ body {
 
 .hp-link {
   background: none; border: 0; padding: 0; font: inherit; font-size: 13px;
-  color: var(--hp-accent-dark); cursor: pointer; text-decoration: underline;
+  color: var(--hp-accent-ink); cursor: pointer; text-decoration: underline;
 }
 .hp-link--clear-all { margin-left: 4px; }
 
@@ -403,7 +415,7 @@ body {
   border-radius: var(--hp-radius-sm); font: inherit;
   background: var(--hp-surface); color: inherit; width: 100%;
 }
-.hp-textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.hp-textarea { resize: vertical; font-family: var(--hp-font-mono); font-size: 12px; }
 
 /* ============================ layers ============================ */
 .hp-layergroup + .hp-layergroup { margin-top: 6px; }
@@ -476,7 +488,7 @@ body {
 }
 .hp-basemap__thumb--empty { display: grid; place-items: center; color: var(--hp-text-muted); }
 .hp-basemap__title { font-size: 13.5px; text-align: left; }
-.hp-basemap__check { margin-left: auto; color: var(--hp-accent); }
+.hp-basemap__check { margin-left: auto; color: var(--hp-accent-ink); }
 
 /* =========================== highlight =========================== */
 .hp-highlight__labels { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }

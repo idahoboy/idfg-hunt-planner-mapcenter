@@ -15,7 +15,8 @@
     "lint": "eslint src --ext .ts,.tsx",
     "config:validate": "node scripts/validate-config.mjs config/app.config.yml",
     "config:health": "node scripts/validate-config.mjs config/app.config.yml --probe",
-    "deploy:pages": "bash scripts/deploy-pages.sh"
+    "deploy:pages": "bash scripts/deploy-pages.sh",
+    "build:inventory": "node scripts/build-inventory.mjs"
   },
   "dependencies": {
     "@arcgis/core": "^4.32.0",

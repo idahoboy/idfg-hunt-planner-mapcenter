@@ -1492,18 +1492,22 @@ tools:
 # =============================================================================
 ui:
   theme:
-    # Legacy "Blaze Orange" IDFG palette, carried across.
-    primary: "#4a5231"
-    primaryDark: "#333a20"
-    accent: "#ff7200"
-    accentDark: "#d95f00"
-    surface: "#ffffff"
-    surfaceAlt: "#f5f5f0"
-    border: "#d9d9cc"
-    text: "#1f2119"
-    textMuted: "#5f6357"
-    danger: "#c1121f"
-    focusRing: "#ff7200"
+    # Palette taken from the IDFG Technical Services Bureau Prospectus (2024):
+    # deep navy blocks, gold keylines, pale blue-grey panels.
+    primary: "#0E3A5D"        # navy — header, tool rail, primary chrome
+    primaryDark: "#08283F"
+    primaryMid: "#2F6183"     # the slate blue of the Conservation Data Lifecycle ring
+    accent: "#E9B94B"         # gold — keylines, active states, fills
+    accentDark: "#C9971F"
+    accentInk: "#8A6410"      # gold dark enough to be TEXT on a light surface
+    surface: "#FFFFFF"
+    surfaceAlt: "#EDF1F6"     # pale blue-grey panel
+    panel: "#DCE3EC"
+    border: "#C9D4E0"
+    text: "#14202B"
+    textMuted: "#55636F"
+    danger: "#B3261E"
+    focusRing: "#C9971F"
   layout:
     filterBarHeight: 68
     resultsRailWidth: 400
