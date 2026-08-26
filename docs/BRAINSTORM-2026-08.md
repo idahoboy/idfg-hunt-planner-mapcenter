@@ -148,6 +148,89 @@ which is the closest thing to "recent reviews" in the whole system.
 
 ---
 
+## 4a. Access is the product
+
+You said access is the hardest thing for people to work out, and it should be
+prominent. Agreed — and it is the one place this app can be genuinely better
+than the regulations booklet, because access is the question the booklet is
+*worst* at answering.
+
+Access has two halves, and today the tool makes the user assemble both by eye.
+
+**Regulatory access** is already encoded in the API's `restriction` vocabulary —
+about forty types, and the significant ones are all access:
+
+| Code | Restriction | Rows |
+|---|---|---|
+| 4 | **Motorized Hunting Rule** — vehicles limited to established roads, 30 Aug–31 Dec | **212** (20% of inventory) |
+| 2 | Very limited access: few roads, private property, only a portion of the unit open | 25 |
+| 3 | **EXTREMELY LIMITED ACCESS** — get permission before buying the tag | 7 |
+| 1 | Limited access | 1 |
+| 7 | Only a portion of this area is open | — |
+| 24 / 27 | Outside National Forest Boundary **only** — a legislative line, not the property line | — |
+| 29 | Landowner Permission Hunt — written permission required even to *apply* | — |
+| 33 / 34 | Lolo Motorway permit · INEEL pass required | — |
+
+One in five published hunts carries the Motorized Hunting Rule, and today the
+only way to discover that is to read the booklet footnotes.
+
+**Physical access** is the map half: surface management (public vs private),
+Access Yes! properties, roads and trails, MVUM, and closures. We already have
+every one of those layers, restored and healthy.
+
+The unlock is that **`AreaID` joins the two**. Once a hunt row resolves to a
+polygon, land ownership can be intersected against it *at cache-build time*, so
+every hunt carries a real number:
+
+> **Elk Controlled Hunt 2093 · Area 55-2** — 78% public land · Motorized Hunting
+> Rule applies · 2 Access Yes! properties on the boundary
+
+That is the sentence people currently spend an evening assembling by hand. It
+should be on the card, filterable, and it should be a sort option — the closest
+thing this domain has to sort-by-price.
+
+Proposed access grades, computed once per hunt at snapshot time:
+
+- **Open** — majority public land, no access restriction codes
+- **Limited** — restriction 1/2/7, or mixed ownership
+- **Permission required** — restriction 3 or 29
+- **Special rule** — restriction 4/24/27/33/34: legal to enter, but a rule
+  changes how you hunt it
+
+`restriction` is a filter parameter and is *not* returned on rows — so the
+snapshot builder queries each restriction code once and stamps the ids. Forty
+cheap queries, once, at build time.
+
+## 4b. Snapshot, do not proxy
+
+Since 1.1 may fall over under concurrency, nothing should query it at runtime.
+
+The entire published inventory is **1,052 rows.** That is nothing. Build a
+snapshot artefact on a schedule:
+
+```
+build-inventory.mjs
+  1. GET /list  (paged, serial, polite)              -> 1,052 rows
+  2. GET /list?restriction=N  for each code          -> stamp access codes
+  3. join game + area -> BigGame + HuntArea -> AreaID
+  4. intersect AreaID polygon with surface management -> % public land
+  5. emit inventory.json  (~1-2 MB, gzips small)
+```
+
+Everything downstream reads that file. Consequences, all good:
+
+- **Zero runtime load** on a fifteen-year-old server, and no rate limit to fear.
+- **Instant filtering** — the whole corpus is client-side, so faceting is
+  synchronous and result counts are exact with no round trip.
+- **Access grades are precomputed**, including the expensive spatial
+  intersection, which could never be done per-request.
+- The app keeps working when the API is down; the snapshot just goes stale, and
+  the existing service-health panel is the natural place to say so.
+- Refresh cadence is a config value. Regulations change seasonally, not hourly.
+
+This also means the AI path never talks to the live API either: intent resolves
+to parameters, and the parameters filter the snapshot.
+
 ## 5. What survives, and what I would throw away
 
 Being blunt about my own work, because you are paying to maintain it.
@@ -232,27 +315,44 @@ that takes a sentence, returns validated parameters, and refuses when unsure.
 
 | Phase | What | Why first |
 |---|---|---|
-| **0** | Spike the API behind the existing rail. Swap `queryEngine` for the API on the big-game profile only. | Proves the reframe against the real UI in days. Nothing else changes. |
-| **1** | Trip profiles in config. Big game default; predator and fishing as second profiles. | Delivers the grouping, reuses the config engine. |
-| **2** | Ranking + the "price" model: permits, draw odds, access difficulty, distance. | This is what makes it Expedia rather than a filtered table. |
-| **3** | AI intent → query (a), behind a flag, with an eval set. | Highest leverage, contained risk. |
-| **4** | Explanation (b) and trip assembly (c). | Only once (a) is trustworthy. |
-| **5** | Birds/waterfowl profile from layers; fishing depth via `/stocking` + `/returns`. | Serves the remaining audiences properly rather than badly. |
+| **0** | `build-inventory.mjs` — snapshot the API, stamp restriction codes, join to `AreaID`. | Removes the fragile-server risk immediately and makes everything after it cheap. |
+| **1** | Swap `queryEngine` for the snapshot on a big-game profile. | Proves the reframe against the real UI in days. |
+| **2** | **Access grades** — precompute public-land share, surface on every card, filter and sort by it. | The hardest question for users, and the thing no competitor answers well. |
+| **3** | Trip profiles in config: big game, predator, fishing. | Delivers the grouping, reuses the config engine. |
+| **4** | AI intent → parameters, behind a flag, with an eval set. | Highest leverage, contained risk. Filters the snapshot, never the live API. |
+| **5** | Explanation and trip assembly. | Only once intent-parsing is demonstrably trustworthy. |
+| **6** | Birds/waterfowl profile from layers; fishing depth via `/stocking` + `/returns`. | Serves the audiences the API does not cover. |
 
 ---
 
-## 8. Open questions
+## 8. Answers received, and the one thing still open
 
-1. **Draw odds.** Is there an endpoint or dataset for controlled-hunt draw
-   statistics? Without it, ranking has no "price" for the 220 controlled elk
-   hunts, and that is the single most valuable number to a hunter.
-2. **Joining inventory to geometry.** `area` is prose ("Portion of Unit 50").
-   The API takes `unit` and `zone` as filters, so the join exists in one
-   direction — is there a per-hunt unit id in any response, or is text parsing
-   the only path to highlighting a tag's actual footprint?
-3. **API stability and terms.** Is 1.1 supported for third-party use, is there a
-   rate limit, and is it the same instance the public site depends on?
-4. **The boundary-version question** from the last session is still open with
-   IDFG GIS and still gates KML and highlight accuracy.
-5. **Points and licences.** "I have three points" is the most common real
-   constraint. Is there any way to reflect it, or is it always user-asserted?
+Resolved 2026-08-26:
+
+1. **Draw odds — skipped.** They exist but are not worth the effort now. Ranking
+   leans on access, permits, and distance instead. Which turns out to be the
+   better story anyway; see §3.
+2. **`AreaID` is the join.** Confirmed end to end: the API's `game` + `area`
+   (`Elk` + `55-2`) matches `BigGame` + `HuntArea` on
+   `Hunting/MapServer/4`, resolving to `AreaID` 1153 and its polygon.
+   Note this is the *same composite key* chosen for `dedupeBy` last session —
+   the dedupe identity and the API join key are the same thing.
+3. **API 1.1 is wide open and fragile** — concurrency may take the server down,
+   and it is fifteen years old. So do not query it at runtime. Snapshot it. See
+   §5a.
+4. **Points do not exist.** General and Controlled, and the rest do not matter.
+   Dropped from intent parsing.
+
+Still open — and now a one-line answer rather than an investigation:
+
+> Of **574** distinct `BigGame` + `HuntArea` pairs, **523 (91%) already resolve
+> to exactly one `AreaID`.** Only **51** are ambiguous, and none has more than
+> three versions. In every one, the versions split into a low id and a high id
+> in the 2680–2840 band, which looks like a bulk re-issue.
+>
+> **All I need: is the highest `AreaID` the current boundary?** If yes, that is
+> one line in the cache builder and the question is closed. If not, a list of
+> the 51 correct ids closes it just as well.
+
+Examples: `Elk 1-1` → 1519 or 2787 · `Deer 10A` → 184 or 2827 ·
+`Deer 1-1X` → 1518, 1519 or 2814.
