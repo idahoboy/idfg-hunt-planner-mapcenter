@@ -12,6 +12,7 @@ import { Toast } from '@/components/Toast';
 import { useHuntSearch } from '@/features/results/useHuntSearch';
 import { useMapClick } from '@/features/click/useMapClick';
 import { LocationPanel } from '@/features/click/LocationPanel';
+import { LocationSummary } from '@/features/click/LocationSummary';
 import { useResultInteraction } from '@/features/results/useResultInteraction';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useUrlSync } from './useUrlSync';
@@ -79,6 +80,7 @@ export function App(): React.ReactElement {
             <MapCanvas />
             <MapControls />
             <CoordinateReadout />
+            <LocationSummary />
             <LocationPanel />
           </main>
         </div>

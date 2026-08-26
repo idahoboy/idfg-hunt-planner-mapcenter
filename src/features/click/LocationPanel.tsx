@@ -82,6 +82,8 @@ export function LocationPanel(): React.ReactElement | null {
   const result = useAppStore((s) => s.clickResult) as LocationResult | null;
   const loading = useAppStore((s) => s.clickLoading);
   const clear = useAppStore((s) => s.clearClickResult);
+  const detailOpen = useAppStore((s) => s.clickDetailOpen);
+  const setDetailOpen = useAppStore((s) => s.setClickDetailOpen);
 
   const grouped = useMemo(() => {
     if (!result) return [];
@@ -96,13 +98,21 @@ export function LocationPanel(): React.ReactElement | null {
   }, [result]);
 
   if (!config.clickQuery.enabled) return null;
-  if (!loading && !result) return null;
+  if (!detailOpen || !result) return null;
 
   const placeLine = result?.place.map((p) => `${p.label} ${p.value}`).join(' · ');
 
   return (
-    <aside className="hp-loc" aria-label="Location details" aria-live="polite">
+    <aside className="hp-loc" aria-label="Location details">
       <header className="hp-loc__header">
+        <button
+          type="button"
+          className="hp-loc__back"
+          onClick={() => setDetailOpen(false)}
+          aria-label="Back to summary"
+        >
+          <Icon name="chevronRight" size={16} />
+        </button>
         <div>
           <h2 className="hp-loc__title">
             {loading ? 'Checking this spot…' : (placeLine || 'This location')}

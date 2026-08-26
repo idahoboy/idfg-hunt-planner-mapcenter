@@ -115,8 +115,11 @@ interface AppState {
    *  feature-layer types; the panel narrows it. */
   clickResult: unknown | null;
   clickLoading: boolean;
+  /** The detail flyout. A click shows a summary; the flyout is asked for. */
+  clickDetailOpen: boolean;
   setClickResult: (result: unknown | null) => void;
   setClickLoading: (loading: boolean) => void;
+  setClickDetailOpen: (open: boolean) => void;
   clearClickResult: () => void;
 
   // ---- highlight ----
@@ -220,9 +223,14 @@ export const useAppStore = create<AppState>((set) => ({
 
   clickResult: null,
   clickLoading: false,
-  setClickResult: (clickResult) => set({ clickResult }),
+  clickDetailOpen: false,
+  // A new click returns to the summary rather than leaving the previous
+  // location's flyout open over an unrelated place.
+  setClickResult: (clickResult) => set({ clickResult, clickDetailOpen: false }),
   setClickLoading: (clickLoading) => set({ clickLoading }),
-  clearClickResult: () => set({ clickResult: null, clickLoading: false }),
+  setClickDetailOpen: (clickDetailOpen) => set({ clickDetailOpen }),
+  clearClickResult: () =>
+    set({ clickResult: null, clickLoading: false, clickDetailOpen: false }),
 
   highlightLabels: [],
   setHighlightLabels: (highlightLabels) => set({ highlightLabels }),
