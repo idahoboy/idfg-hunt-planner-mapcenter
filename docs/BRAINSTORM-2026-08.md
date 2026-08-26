@@ -343,16 +343,67 @@ Resolved 2026-08-26:
 4. **Points do not exist.** General and Controlled, and the rest do not matter.
    Dropped from intent parsing.
 
-Still open — and now a one-line answer rather than an investigation:
+### The boundary question, corrected
 
-> Of **574** distinct `BigGame` + `HuntArea` pairs, **523 (91%) already resolve
-> to exactly one `AreaID`.** Only **51** are ambiguous, and none has more than
-> three versions. In every one, the versions split into a low id and a high id
-> in the 2680–2840 band, which looks like a bulk re-issue.
->
-> **All I need: is the highest `AreaID` the current boundary?** If yes, that is
-> one line in the cache builder and the question is closed. If not, a list of
-> the 51 correct ids closes it just as well.
+`AreaID` is an **autonumber**. It carries no meaning beyond uniqueness, so
+"highest id is newest" was invalid reasoning on my part — the id says nothing
+about currency. **An `AreaID` is only meaningful if the current season
+references it.** That reframes the whole thing, and it mostly dissolves it.
 
-Examples: `Elk 1-1` → 1519 or 2787 · `Deer 10A` → 184 or 2827 ·
-`Deer 1-1X` → 1518, 1519 or 2814.
+Applying that rule to the live data:
+
+| | |
+|---|---|
+| Hunt areas the current season references | **239** |
+| Resolve to exactly one `AreaID` | **217 (91%)** — no decision needed |
+| Ambiguous, more than one `AreaID` | **20** |
+| Referenced by the API but **no polygon exists** | **2** |
+| GIS pairs the season does **not** reference | **337 of 574** — historical, never draw them |
+
+So the API is the authority on which polygons are live, and 337 stale pairs
+disappear on their own by being unreferenced. That is a filter, not a judgement
+call, and it belongs in the snapshot builder.
+
+**The join also needs a species alias table**, because the two systems name
+game differently:
+
+| API 1.1 `game` | GIS `BigGame` |
+|---|---|
+| Mule and White-tailed Deer · Mule Deer · White-tailed Deer | Deer |
+| Pronghorn Antelope | Pronghorn |
+
+Without it, 138 of 239 referenced areas fail to resolve. With it, 2 fail.
+
+### What is actually left to decide
+
+Only these **20 areas** have more than one candidate polygon and are referenced
+by the current season. This is the whole list — no investigation needed, just a
+rule or a pick:
+
+| Species | Hunt area | Candidate AreaIDs |
+|---|---|---|
+| Deer | 1-1X | 1518, 1519, 2814 |
+| Deer | 10A | 184, 2827 |
+| Deer | 21-1 | 1307, 2755 |
+| Deer | 21-1X | 1067, 2756 |
+| Deer | 36A-1X | 1069, 2757 |
+| Deer | 36B-1 | 1512, 2703 |
+| Deer | 39-2 | 1513, 2684 |
+| Deer | 60-1 | 1367, 2833 |
+| Deer | 60A-1X | 1378, 2754 |
+| Elk | 1-1 | 1519, 2787 |
+| Elk | 10A-1 | 71, 2828 |
+| Elk | 3-2 | 1541, 2762 |
+| Elk | 30A-1 | 1266, 2830 |
+| Elk | 36-1 | 1551, 2764 |
+| Elk | 36B-1 | 1376, 1411 |
+| Elk | 39-2 | 1060, 2686 |
+| Elk | 60-2 | 131, 2835 |
+| Elk | 69-1X | 2693, 2771 |
+| Pronghorn | 30-1 | 143, 2836 |
+| Pronghorn | 36B-1 | 146, 2837 |
+
+Two more worth flagging to IDFG separately: **`Deer 33` and `Deer 41-2` are
+referenced by the current season but have no polygon in
+`Hunting/MapServer/4` at all.** That is a data gap rather than an ambiguity —
+those hunts cannot be mapped today.
