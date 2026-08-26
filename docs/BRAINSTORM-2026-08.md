@@ -174,6 +174,37 @@ about forty types, and the significant ones are all access:
 One in five published hunts carries the Motorized Hunting Rule, and today the
 only way to discover that is to read the booklet footnotes.
 
+### Correction after building the snapshot
+
+Running the builder against every restriction code exposed something that
+weakens the claim above, and it should be on the record.
+
+**Eighteen of the twenty-four restriction codes return zero rows** — including
+six of the ten that describe access: 7 (only a portion open), 24 and 27
+(outside National Forest boundary), 29 (landowner permission), 33 (Lolo
+Motorway) and 34 (INEEL pass). The documented vocabulary is far richer than
+what is actually populated this season.
+
+What the API really carries:
+
+| Access grade | Hunts | Source |
+|---|---:|---|
+| Open — no access code at all | **811** | 77% of inventory |
+| Special rule | 208 | almost entirely the Motorized Hunting Rule |
+| Limited | 26 | codes 1 and 2 |
+| Permission required | 7 | code 3 |
+
+So **only 241 of 1,052 hunts (23%) carry any access signal from the API.** For
+the other 811 the API says nothing — which does not mean access is easy, only
+that nothing is recorded.
+
+That makes the land-ownership intersection **essential rather than a
+refinement**. It is the only way to say anything about access for three
+quarters of the inventory, and it should move from a follow-on to part of the
+first access milestone.
+
+
+
 **Physical access** is the map half: surface management (public vs private),
 Access Yes! properties, roads and trails, MVUM, and closures. We already have
 every one of those layers, restored and healthy.
