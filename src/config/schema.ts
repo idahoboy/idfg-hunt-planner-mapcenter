@@ -166,6 +166,40 @@ const SourceSchema = z.object({
   facetFields: z.record(z.string(), z.union([z.string(), z.record(z.string(), z.string())])).optional(),
 });
 
+const ClickQuerySchema = z.object({
+  enabled: z.boolean().default(true),
+  tolerancePx: z.number().default(8),
+  granularity: z.object({
+    localBelowScale: z.number(),
+    regionalBelowScale: z.number(),
+  }),
+  context: z.array(
+    z.object({
+      id: z.string(),
+      label: z.string(),
+      url: z.string(),
+      fields: z.array(z.string()),
+      display: z.string(),
+      multiple: z.boolean().default(false),
+    }),
+  ),
+  ownership: z
+    .object({
+      url: z.string(),
+      fields: z.array(z.string()),
+      agencyField: z.string(),
+      nameField: z.string(),
+      labels: z.record(z.string(), z.string()).default({}),
+    })
+    .optional(),
+  inventory: z.object({
+    url: z.string(),
+    matchGeneralByUnit: z.boolean().default(true),
+    matchControlledByAreaId: z.boolean().default(true),
+    maxHunts: z.number().default(40),
+  }),
+});
+
 export const AppConfigSchema = z.object({
   version: z.number(),
   app: z.object({
@@ -241,6 +275,7 @@ export const AppConfigSchema = z.object({
       z.object({ url: z.string(), idField: z.string(), label: z.string() }),
     ),
   }),
+  clickQuery: ClickQuerySchema,
   tools: z.record(z.string(), z.record(z.string(), z.unknown())),
   ui: z.object({
     theme: z.record(z.string(), z.string()),

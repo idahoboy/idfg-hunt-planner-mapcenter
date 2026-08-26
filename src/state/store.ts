@@ -110,6 +110,15 @@ interface AppState {
   expandedResultKey: string | null;
   setExpandedResultKey: (key: string | null) => void;
 
+  // ---- map click ----
+  /** Result of the last map click. `unknown` so the store stays free of
+   *  feature-layer types; the panel narrows it. */
+  clickResult: unknown | null;
+  clickLoading: boolean;
+  setClickResult: (result: unknown | null) => void;
+  setClickLoading: (loading: boolean) => void;
+  clearClickResult: () => void;
+
   // ---- highlight ----
   highlightLabels: string[];
   setHighlightLabels: (labels: string[]) => void;
@@ -208,6 +217,12 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedResultKey: (selectedResultKey) => set({ selectedResultKey }),
   expandedResultKey: null,
   setExpandedResultKey: (expandedResultKey) => set({ expandedResultKey }),
+
+  clickResult: null,
+  clickLoading: false,
+  setClickResult: (clickResult) => set({ clickResult }),
+  setClickLoading: (clickLoading) => set({ clickLoading }),
+  clearClickResult: () => set({ clickResult: null, clickLoading: false }),
 
   highlightLabels: [],
   setHighlightLabels: (highlightLabels) => set({ highlightLabels }),

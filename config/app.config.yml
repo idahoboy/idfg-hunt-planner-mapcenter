@@ -1370,6 +1370,61 @@ highlight:
     7: { url: "${roots.idfgRest}/Species/Distribution/MapServer/3", idField: TaxonID, label: Species Distribution }
 
 # =============================================================================
+#  CLICK QUERY  —  what happens when someone clicks the map
+# =============================================================================
+#  A click is a location question, not a feature lookup. The default SDK popup
+#  answers "what is this polygon" and paginates when layers overlap; this
+#  answers "what can I hunt here, and can I get on it".
+# =============================================================================
+clickQuery:
+  enabled: true
+  # Click tolerance in screen pixels, so a fingertip on a phone still resolves.
+  tolerancePx: 8
+
+  # Zoom decides how precise an answer is honest. Naming a unit is defensible
+  # statewide; naming the parcel under the cursor is not.
+  granularity:
+    localBelowScale: 200000
+    regionalBelowScale: 3000000
+
+  # Context layers answer "where am I". Each is a point-intersect query.
+  context:
+    - { id: unit,     label: Unit,      url: "${roots.idfgRest}/Hunting/MapServer/3", fields: [NAME, Elk_Zone], display: NAME }
+    - { id: elkZone,  label: Elk zone,  url: "${roots.idfgRest}/Hunting/MapServer/1", fields: [NAME], display: NAME }
+    - { id: region,   label: Region,    url: "${roots.idfgAgol}/Administrative_Regions/FeatureServer/0", fields: [NAME], display: NAME }
+    - { id: huntArea, label: Hunt area, url: "${roots.idfgRest}/Hunting/MapServer/4", fields: [AreaID, BigGame, HuntArea], display: HuntArea, multiple: true }
+
+  # Land ownership under the cursor — the single most useful access fact, and
+  # the one nobody can work out from a basemap.
+  ownership:
+    url: "https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_Cached_without_PriUnk/MapServer/1"
+    fields: [ADMIN_AGENCY_CODE, ADMIN_UNIT_NAME, ADMIN_DEPT_CODE]
+    agencyField: ADMIN_AGENCY_CODE
+    nameField: ADMIN_UNIT_NAME
+    # BLM's codes are terse; these are what a person would say.
+    labels:
+      PVT: Private land
+      BLM: BLM
+      FS: US Forest Service
+      NPS: National Park Service
+      FWS: US Fish and Wildlife Service
+      STL: State of Idaho
+      STP: State park
+      DOD: Department of Defense
+      BOR: Bureau of Reclamation
+      TRIB: Tribal land
+      OTHF: Other federal
+
+  # Hunts are matched from the snapshot, not the network.
+  inventory:
+    url: /inventory.json
+    # A general hunt references units in prose; a controlled hunt resolves by
+    # AreaID. Both paths are needed — see docs/BRAINSTORM-2026-08.md.
+    matchGeneralByUnit: true
+    matchControlledByAreaId: true
+    maxHunts: 40
+
+# =============================================================================
 #  TOOLS
 # =============================================================================
 tools:

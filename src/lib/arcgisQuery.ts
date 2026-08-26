@@ -115,6 +115,9 @@ export interface FeatureQueryOptions {
   start?: number;
   /** Collapse duplicate rows: DISTINCT over `outFields`. */
   distinct?: boolean;
+  /** Buffer around `geometry`, so a click tolerance can be expressed in map units. */
+  distance?: number;
+  units?: __esri.QueryProperties['units'];
 }
 
 export async function queryFeatures(opts: FeatureQueryOptions): Promise<__esri.FeatureSet> {
@@ -128,6 +131,10 @@ export async function queryFeatures(opts: FeatureQueryOptions): Promise<__esri.F
   if (opts.geometry) {
     q.geometry = opts.geometry;
     q.spatialRelationship = 'intersects';
+    if (opts.distance !== undefined) {
+      q.distance = opts.distance;
+      if (opts.units) q.units = opts.units;
+    }
   }
   if (opts.distinct) q.returnDistinctValues = true;
   if (opts.num !== undefined) q.num = opts.num;

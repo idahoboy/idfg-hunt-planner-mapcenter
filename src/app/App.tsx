@@ -10,6 +10,8 @@ import { ResultsRail } from '@/features/results/ResultsRail';
 import { CoordinateReadout } from '@/features/coords/CoordinateReadout';
 import { Toast } from '@/components/Toast';
 import { useHuntSearch } from '@/features/results/useHuntSearch';
+import { useMapClick } from '@/features/click/useMapClick';
+import { LocationPanel } from '@/features/click/LocationPanel';
 import { useResultInteraction } from '@/features/results/useResultInteraction';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useUrlSync } from './useUrlSync';
@@ -22,6 +24,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 function MapWiring(): null {
   useHuntSearch();
   useResultInteraction();
+  useMapClick();
   useKeyboardShortcuts();
   useUrlSync();
   return null;
@@ -76,6 +79,7 @@ export function App(): React.ReactElement {
             <MapCanvas />
             <MapControls />
             <CoordinateReadout />
+            <LocationPanel />
           </main>
         </div>
 
