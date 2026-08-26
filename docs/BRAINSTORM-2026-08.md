@@ -493,6 +493,81 @@ two meanings.
 
 ## Backlog
 
+### Make a map click answer a question
+
+Today a click returns whatever Esri's default popup finds: a feature from
+whichever layer happened to be hit, paginated "1 of 6" when several overlap.
+It answers *what is this polygon* — which is almost never what the person
+wanted to know.
+
+**A click is a location query, not a feature query.** The question is the same
+one the whole application exists to answer, asked by pointing instead of by
+filtering:
+
+> What can I hunt here, and can I get on it?
+
+#### Three inputs we already have and do not use
+
+1. **Zoom** tells us the grain of answer wanted. Someone clicking at statewide
+   zoom is asking a different question from someone clicking a drainage.
+2. **Which layers are on** tells us what the person cares about. Layer state is
+   currently only a draw instruction; it should also be a *reporting*
+   instruction. If fire closures are switched on, a click near one should
+   mention it.
+3. **The inventory snapshot** turns a location into hunts, instantly and with
+   no network call — the piece that was impossible before.
+
+#### The response, in priority order
+
+Lead with the hunt answer, not the polygon dump.
+
+| Section | Answers | Source |
+|---|---|---|
+| **Where** | "Unit 39, Boise County" | GMU + county layers |
+| **What can I hunt** | Tags valid here, with dates, weapon, ornament, permits — **filtered by whatever the user already has selected** | snapshot, matched on `unitsReferenced` / hunt area |
+| **Can I get on it** | Ownership at the clicked point, nearest Access Yes!, road and trail status, motorized rule | SMA identify, Access Yes!, IDPR, restriction codes |
+| **Warnings** | Closures, qualified areas, restrictions | fire closures, `areaQualified`, restrictions |
+| **Everything under the cursor** | The raw feature hits, collapsed | the current behaviour, demoted rather than removed |
+
+Respecting the active filters matters: if someone has already narrowed to
+archery elk in October, a click should answer *for that*, not list all 47 tags
+that touch the unit.
+
+#### Zoom drives granularity
+
+| Zoom | The honest answer |
+|---|---|
+| Statewide | "Unit 39." Naming a unit is all that is defensible at that scale — offer to zoom rather than pretend to precision |
+| Regional | Unit, the hunts available in it, an access summary |
+| Local | Ownership *at the point*, roads and trails, the Access Yes! parcel, closures — the "can I stand here" answer |
+
+This also solves the overlap problem honestly: at coarse zoom there is genuinely
+only one useful answer, and at fine zoom the point resolves to one parcel.
+
+#### The correctness trap
+
+**A polygon is not a permission.** 42 general hunts say *portion of*,
+*except*, *private land* or *outside* — for those the GMU boundary overstates
+where hunting is legal. A click inside such a unit must not reply "you can hunt
+elk here". It must name the hunt, surface the qualifying text, and say the
+brochure governs. This is the one part of the feature where being vague is
+correct and being confident is dangerous.
+
+Same rule for the 20 areas with an undecided boundary: if a click lands in one,
+say the boundary is unconfirmed rather than drawing an authoritative-looking
+answer.
+
+#### Mechanics
+
+- Query **only visible, queryable** layers — `view.hitTest` for graphics,
+  `identify` for map-image layers, point queries for feature layers.
+- Ownership at a point is a single cheap identify against the SMA service.
+- Hunts come from the snapshot: an array filter, no request.
+- Desktop can dock the result; mobile should use the existing bottom-sheet
+  pattern rather than an Esri popup, which is cramped on a phone.
+- Whatever renders it must be reachable by keyboard and announce itself — a
+  click result that only exists visually is a step backwards from the list.
+
 ### Live attribution from layer metadata and the API
 
 The Esri SDK already reserves a place for this: `MapView` renders an
