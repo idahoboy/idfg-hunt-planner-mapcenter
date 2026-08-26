@@ -407,3 +407,52 @@ Two more worth flagging to IDFG separately: **`Deer 33` and `Deer 41-2` are
 referenced by the current season but have no polygon in
 `Hunting/MapServer/4` at all.** That is a data gap rather than an ambiguity —
 those hunts cannot be mapped today.
+
+
+---
+
+## Errata — errors and data gaps found
+
+Observed directly against live services on 25–26 August 2026. **fixed** items are
+resolved in the current build; the rest are open, and **blocks** items stop work
+described above.
+
+### Hunt inventory ↔ geometry
+
+| | |
+|---|---|
+| **blocks** | **`Deer 33` and `Deer 41-2` have no polygon.** Both are referenced by the current season in API 1.1 but absent from `Hunting/MapServer/4`. These hunts cannot be mapped. |
+| **blocks** | **20 hunt areas resolve to more than one `AreaID`**, with nothing in either system marking which boundary is current. Nine deer, nine elk, two pronghorn — full list above. |
+| **breaks joins** | **Species vocabularies disagree.** API says *Mule and White-tailed Deer*, *Mule Deer*, *White-tailed Deer*, *Pronghorn Antelope*; GIS says *Deer*, *Pronghorn*. Unaliased, 138 of 239 referenced areas silently fail to resolve. |
+
+### API 1.1
+
+| | |
+|---|---|
+| **doc bug** | The spec's `hunt` definition documents *fishing* fields — `id, name, var, loc, rfw, ffw, body, size` — copy-pasted from the Fishing Planner spec. The real response shares only `id`. |
+| **breaks clients** | `/list` without a trailing slash returns **301 with an HTML body**. Clients that do not follow redirects get markup where they expect JSON. |
+| **dead field** | `group_area` is returned on all 1,052 rows and is null on every one. |
+| **dead codes** | `game` 102, 103, 104, 105 (upland bird, small game, waterfowl, upland game) return zero rows for every regulation year, as do `restriction` 5 and 6. |
+| **design gap** | `restriction` filters but is never returned on a row. Access data can only be reconstructed by querying each code — the reason the snapshot stamps it at build time. |
+| *(useful)* | `limit=1052` returns the entire corpus in **one request**; the snapshot needs no paging. |
+
+### Map services — from the August audit
+
+| | |
+|---|---|
+| **fixed** | GeoMAC fire perimeters and MODIS detections — DNS dead since the 2020 decommission, still wired into the live layer list. Now NIFC WFIGS and VIIRS. |
+| **fixed** | `geomac_dyn` historic perimeters — HTTP 403. Now NIFC history. |
+| **fixed** | BLM Idaho surface management — HTTP 404. Now the national SMA service. |
+| **fixed** | ITD airports — HTTP 500. Now BTS aviation facilities. |
+| **fixed** | Access Yes! deep link `?lyr=2` pointed at a URL missing its `/Hosted/` segment and always 404'd. |
+| **fixed** | `Year = 2020` pinned on every controlled hunt layer. `Year` is not a season; filtering on it dropped valid areas. |
+| **open** | **Fire Emergency Closures** — the AGOL item now requires a token. Ships disabled; re-share the item to restore it. |
+| **open** | **`gis2.idaho.gov` unreachable** from the audit network (counties, campgrounds). Primaries repointed, originals kept as fallbacks; may resolve inside the IDFG network. |
+| **open** | NLCD 2011 image service reports *service not started*. Layer dropped — already unreachable and hidden. |
+
+### ArcGIS quirks worth knowing
+
+| | |
+|---|---|
+| quirk | `returnCountOnly` + `returnDistinctValues` accepts exactly **one** `outField`. Composite counts need a grouped statistics query. |
+| quirk | A paged `DISTINCT` query is rejected without an `ORDER BY`, and that order may only reference projected columns. |
