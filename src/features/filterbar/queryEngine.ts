@@ -14,6 +14,8 @@ export interface SearchInput {
   /** Region facet resolves to geometry; supplied by the caller. */
   regionGeometry?: Geometry | null;
   pageSize: number;
+  /** Fetch counts but no records — used by the rail's starting state. */
+  countsOnly?: boolean;
 }
 
 export interface SearchOutput {
@@ -156,6 +158,7 @@ export async function runSearch(input: SearchInput): Promise<SearchOutput> {
     : input.extent ?? null;
 
   const perSourceLimit = Math.max(5, Math.ceil(pageSize / Math.max(1, sources.length)));
+  const countsOnly = input.countsOnly ?? false;
 
   const settled = await Promise.allSettled(
     sources.map(async (source) => {
@@ -179,7 +182,9 @@ export async function runSearch(input: SearchInput): Promise<SearchOutput> {
         distinct
           ? queryDistinctCount(source.url, dedupeFields, where, geometry)
           : queryCount(source.url, where, geometry),
-        queryFeatures({
+        countsOnly
+          ? Promise.resolve({ features: [] } as unknown as __esri.FeatureSet)
+          : queryFeatures({
           url: source.url,
           where,
           // For a deduped source `outFields` IS the identity (validated), so

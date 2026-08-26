@@ -57,6 +57,10 @@ export function App(): React.ReactElement {
   // A tool panel is open over the map only when a tool other than the finder
   // is selected — on mobile that panel is a sheet, so it also hides the pill.
   const toolPanelOpen = isMobile && sidebarOpen && activeTool !== null && activeTool !== 'huntFinder';
+  // An expanded card carries its own "Show on map", and the floating pill would
+  // otherwise sit right on top of that button.
+  const expandedResultKey = useAppStore((s) => s.expandedResultKey);
+  const pillHidden = toolPanelOpen || (mobileView === 'list' && expandedResultKey !== null);
 
   return (
     <MapProvider>
@@ -79,12 +83,8 @@ export function App(): React.ReactElement {
           <>
             <FilterSheet />
             <ToolsSheet entries={toolEntries(config)} />
-            {!toolPanelOpen ? (
-              <>
-                {mobileView === 'map' ? <ToolsButton /> : null}
-                <MobileViewToggle />
-              </>
-            ) : null}
+            {!toolPanelOpen && mobileView === 'map' ? <ToolsButton /> : null}
+            {!pillHidden ? <MobileViewToggle /> : null}
           </>
         ) : null}
 

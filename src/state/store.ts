@@ -75,6 +75,21 @@ interface AppState {
   syncToExtent: boolean;
   setSyncToExtent: (sync: boolean) => void;
 
+  /**
+   * How many records to fetch. "Load more" raises it; any filter change resets
+   * it. Without this the list silently stopped at the first page and the rest
+   * of the matches were simply unreachable.
+   */
+  resultLimit: number;
+  loadMore: () => void;
+  /**
+   * Statewide there are thousands of areas, and a truncated dump of them is
+   * not a useful thing to hand someone. With no filters applied the rail shows
+   * a starting panel instead; this opts out of it.
+   */
+  browseAll: boolean;
+  setBrowseAll: (browse: boolean) => void;
+
   results: ResultRecord[];
   resultCount: number;
   resultsLoading: boolean;
@@ -87,6 +102,13 @@ interface AppState {
   setHoveredResultKey: (key: string | null) => void;
   selectedResultKey: string | null;
   setSelectedResultKey: (key: string | null) => void;
+  /**
+   * Mobile only: the card expanded in place. The list covers the map on a
+   * phone, so tapping a card opens its detail rather than silently zooming a
+   * map the user cannot see; the detail carries the action that goes there.
+   */
+  expandedResultKey: string | null;
+  setExpandedResultKey: (key: string | null) => void;
 
   // ---- highlight ----
   highlightLabels: string[];
@@ -146,26 +168,31 @@ export const useAppStore = create<AppState>((set) => ({
 
   filters: {},
   setFilter: (facetId, values) =>
-    set((s) => ({ filters: { ...s.filters, [facetId]: values } })),
+    set((s) => ({ filters: { ...s.filters, [facetId]: values }, resultLimit: 50 })),
   toggleFilterValue: (facetId, value) =>
     set((s) => {
       const current = s.filters[facetId] ?? [];
       const next = current.includes(value)
         ? current.filter((v) => v !== value)
         : [...current, value];
-      return { filters: { ...s.filters, [facetId]: next } };
+      return { filters: { ...s.filters, [facetId]: next }, resultLimit: 50 };
     }),
   clearFilter: (facetId) =>
     set((s) => {
       const next = { ...s.filters };
       delete next[facetId];
-      return { filters: next };
+      return { filters: next, resultLimit: 50 };
     }),
-  clearAllFilters: () => set({ filters: {}, keyword: '' }),
+  clearAllFilters: () => set({ filters: {}, keyword: '', resultLimit: 50, browseAll: false }),
   keyword: '',
-  setKeyword: (keyword) => set({ keyword }),
+  setKeyword: (keyword) => set({ keyword, resultLimit: 50 }),
   syncToExtent: false,
   setSyncToExtent: (syncToExtent) => set({ syncToExtent }),
+
+  resultLimit: 50,
+  loadMore: () => set((s) => ({ resultLimit: s.resultLimit + 50 })),
+  browseAll: false,
+  setBrowseAll: (browseAll) => set({ browseAll }),
 
   results: [],
   resultCount: 0,
@@ -179,6 +206,8 @@ export const useAppStore = create<AppState>((set) => ({
   setHoveredResultKey: (hoveredResultKey) => set({ hoveredResultKey }),
   selectedResultKey: null,
   setSelectedResultKey: (selectedResultKey) => set({ selectedResultKey }),
+  expandedResultKey: null,
+  setExpandedResultKey: (expandedResultKey) => set({ expandedResultKey }),
 
   highlightLabels: [],
   setHighlightLabels: (highlightLabels) => set({ highlightLabels }),

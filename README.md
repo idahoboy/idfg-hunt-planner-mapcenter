@@ -170,12 +170,27 @@ between them pushing the map off the bottom of the screen.
 | All other facets in a drop-down row | Full-screen filter sheet, options expanded inline (a popover inside a sheet is a dropdown inside a dropdown) |
 | Results rail beside the map | Results layered over the map, swapped by a floating **Map / List (n)** pill |
 | Tool rail always visible down the left | A button on the map opens a tool grid; the chosen panel takes the screen |
+| Tapping a card selects and flies the map to it | Tapping expands the card in place; the detail carries **Show on map**, because the list covers the map and the zoom would otherwise happen out of sight |
 | Zoom, Home, Locate, Compass, Fullscreen | Locate only — pinch zooms, the device reports heading, the browser owns fullscreen |
 
 The MapView is never unmounted when the list is showing; the list is layered
 over it. Toggling would otherwise cost a full basemap fetch and lose the extent
 the user was just looking at. Sheets respect `env(safe-area-inset-bottom)` so
 the pill clears the iOS home indicator.
+
+### Result volume
+
+The finder matches 5,533 areas statewide, and handing someone the first fifty
+of those is a list that looks complete and is not. With no filters applied the
+rail shows a starting panel — the total, the hunt types as one-tap narrowing,
+and an explicit *Browse all anyway* — and only counts are fetched. Once
+something is applied, results page in 50 at a time via **Load more**, so
+nothing is unreachable; past 200 the note suggests narrowing instead.
+
+Expanded cards render from the source's `detail` block, or borrow a layer's
+popup via `detailFromLayer`. A source selecting `outFields: ["*"]` without one
+falls back to listing raw columns — which is why `access-yes` borrows the popup
+already written for its layer rather than showing `bidid` and `publishstatus`.
 
 ---
 

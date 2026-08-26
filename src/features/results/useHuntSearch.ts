@@ -43,6 +43,8 @@ export function useHuntSearch(): void {
   const filters = useAppStore((s) => s.filters);
   const keyword = useAppStore((s) => s.keyword);
   const syncToExtent = useAppStore((s) => s.syncToExtent);
+  const resultLimit = useAppStore((s) => s.resultLimit);
+  const browseAll = useAppStore((s) => s.browseAll);
   const setResults = useAppStore((s) => s.setResults);
   const setResultsLoading = useAppStore((s) => s.setResultsLoading);
   const setResultsError = useAppStore((s) => s.setResultsError);
@@ -62,6 +64,9 @@ export function useHuntSearch(): void {
 
   useEffect(() => {
     if (!config.huntFinder.enabled) return;
+
+    const hasCriteria =
+      Object.values(filters).some((v) => v.length > 0) || keyword.trim().length > 0;
 
     const runId = ++runIdRef.current;
     const timer = window.setTimeout(() => {
@@ -85,7 +90,10 @@ export function useHuntSearch(): void {
             keyword,
             extent: syncToExtent && view ? view.extent : null,
             regionGeometry,
-            pageSize: config.huntFinder.pageSize,
+            pageSize: resultLimit,
+            // With nothing applied the rail shows a starting panel rather than
+            // a truncated dump, so only the counts are worth fetching.
+            countsOnly: !browseAll && !hasCriteria,
           });
 
           if (runId !== runIdRef.current) return;   // a newer search superseded this one
@@ -101,7 +109,7 @@ export function useHuntSearch(): void {
 
     return () => window.clearTimeout(timer);
   }, [
-    config, filters, keyword, syncToExtent, view,
+    config, filters, keyword, syncToExtent, view, resultLimit, browseAll,
     setResults, setResultsLoading, setResultsError,
   ]);
 }

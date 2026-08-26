@@ -3,7 +3,7 @@ import type { PopupConfig } from '@/config/schema';
 
 const TRUTHY = new Set(['y', 'yes', 'true', '1', 't']);
 
-function isTruthy(value: unknown): boolean {
+export function isTruthy(value: unknown): boolean {
   if (value === true || value === 1) return true;
   if (typeof value === 'string') return TRUTHY.has(value.trim().toLowerCase());
   return false;
@@ -17,7 +17,7 @@ function escapeHtml(value: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
-function formatValue(raw: unknown, format?: string, suffix?: string): string {
+export function formatAttr(raw: unknown, format?: string, suffix?: string): string {
   if (raw === null || raw === undefined || raw === '') return '—';
   let out: string;
   switch (format) {
@@ -68,7 +68,7 @@ export function buildPopupTemplate(cfg: PopupConfig, fallbackTitle: string): Pop
           const dt = document.createElement('dt');
           dt.textContent = f.label;
           const dd = document.createElement('dd');
-          dd.innerHTML = formatValue(raw, f.format, f.suffix);
+          dd.innerHTML = formatAttr(raw, f.format, f.suffix);
           if (f.note) {
             const note = document.createElement('span');
             note.className = 'hp-popup__note';

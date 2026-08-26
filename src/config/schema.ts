@@ -154,6 +154,14 @@ const SourceSchema = z.object({
   kmlTemplate: z.string().optional(),
   /** Shown above this source's results. Use for known data caveats. */
   caveat: z.string().optional(),
+  /**
+   * How an expanded result card renders. Without one, the card falls back to
+   * listing whatever `outFields` returned, which for a source selecting "*"
+   * means raw database columns.
+   */
+  detail: PopupSchema.optional(),
+  /** Borrow the popup already written for this layer id, instead of repeating it. */
+  detailFromLayer: z.string().optional(),
   speciesAliases: z.record(z.string(), z.string()).optional(),
   facetFields: z.record(z.string(), z.union([z.string(), z.record(z.string(), z.string())])).optional(),
 });
