@@ -190,8 +190,22 @@ const ClickQuerySchema = z.object({
       agencyField: z.string(),
       nameField: z.string(),
       labels: z.record(z.string(), z.string()).default({}),
+      source: z.string().optional(),
+      caveat: z.string().optional(),
     })
     .optional(),
+  agreements: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        url: z.string(),
+        fields: z.array(z.string()),
+        nameField: z.string(),
+        notifyField: z.string().optional(),
+      }),
+    )
+    .default([]),
   inventory: z.object({
     url: z.string(),
     matchGeneralByUnit: z.boolean().default(true),

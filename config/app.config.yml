@@ -1394,13 +1394,23 @@ clickQuery:
     - { id: region,   label: Region,    url: "${roots.idfgAgol}/Administrative_Regions/FeatureServer/0", fields: [NAME], display: NAME }
     - { id: huntArea, label: Hunt area, url: "${roots.idfgRest}/Hunting/MapServer/4", fields: [AreaID, BigGame, HuntArea], display: HuntArea, multiple: true }
 
-  # Land ownership under the cursor — the single most useful access fact, and
-  # the one nobody can work out from a basemap.
+  # Land ownership under the cursor.
+  #
+  # IMPORTANT — this is BLM's *national, generalized* Surface Management Agency
+  # layer. It is a good regional picture and it is NOT a title record: parcel
+  # edges are approximate, it lags real transactions, and it knows nothing
+  # about access agreements. The UI must attribute it and hedge it rather than
+  # state ownership as fact. See `agreements` below, which corrects the most
+  # damaging case.
   ownership:
     url: "https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_Cached_without_PriUnk/MapServer/1"
     fields: [ADMIN_AGENCY_CODE, ADMIN_UNIT_NAME, ADMIN_DEPT_CODE]
     agencyField: ADMIN_AGENCY_CODE
     nameField: ADMIN_UNIT_NAME
+    source: BLM Surface Management Agency (national, generalized)
+    caveat: >
+      Generalized regional data, not a title record or a survey. Boundaries are
+      approximate and it does not reflect access agreements. Verify before you hunt.
     # BLM's codes are terse; these are what a person would say.
     labels:
       PVT: Private land
@@ -1414,6 +1424,18 @@ clickQuery:
       BOR: Bureau of Reclamation
       TRIB: Tribal land
       OTHF: Other federal
+
+  # Access agreements OVERRIDE a bare ownership reading. An Access Yes!
+  # property is private land that IDFG has already secured permission on —
+  # reporting it as "private, permission required" is not just unhelpful, it is
+  # wrong, and it hides the single most useful thing on the map.
+  agreements:
+    - id: access-yes
+      label: Access Yes!
+      url: "${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0"
+      fields: [name, generalarea, biggame, uplandgame, waterfowl, fishing, landnotify, accessbegin, accessend, contactname]
+      nameField: name
+      notifyField: landnotify
 
   # Hunts are matched from the snapshot, not the network.
   inventory:

@@ -55,7 +55,15 @@ export function LocationSummary(): React.ReactElement | null {
           </div>
 
           <div className="hp-locsum__facts">
-            {result.ownership ? (
+            {/* An access agreement is the more useful and more accurate fact,
+                so it displaces the raw ownership chip rather than sitting
+                beside it and contradicting it. */}
+            {result.agreements.length > 0 ? (
+              <span className="hp-locsum__fact hp-locsum__fact--ok">
+                <Icon name="check" size={13} />
+                {result.agreements[0]!.label}
+              </span>
+            ) : result.ownership ? (
               <span
                 className={`hp-locsum__fact${
                   result.ownership.code === 'PVT' ? ' hp-locsum__fact--warn' : ''

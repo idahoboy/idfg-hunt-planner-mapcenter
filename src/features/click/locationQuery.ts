@@ -2,6 +2,7 @@ import Point from '@arcgis/core/geometry/Point';
 import type MapView from '@arcgis/core/views/MapView';
 import { queryFeatures } from '@/lib/arcgisQuery';
 import { loadInventory, type Hunt, type IndexedInventory } from '@/lib/inventory';
+import { appUrl } from '@/lib/appUrl';
 import type { AppConfig } from '@/config/schema';
 
 export type Granularity = 'statewide' | 'regional' | 'local';
@@ -29,7 +30,21 @@ export interface LocationResult {
   granularity: Granularity;
   place: PlaceFact[];
   unit: string | null;
-  ownership: { code: string; label: string; name: string | null } | null;
+  ownership: {
+    code: string;
+    label: string;
+    name: string | null;
+    source?: string;
+    caveat?: string;
+  } | null;
+  /** Access agreements covering this point — these override a bare ownership read. */
+  agreements: Array<{
+    id: string;
+    label: string;
+    name: string;
+    notifyRequired: boolean;
+    attributes: Record<string, unknown>;
+  }>;
   hunts: HuntMatch[];
   /** Hunts hidden because the user's own filters exclude them. */
   hiddenByFilters: number;
@@ -135,12 +150,17 @@ export async function queryLocation(
   const lonlat = { lon: mapPoint.longitude ?? 0, lat: mapPoint.latitude ?? 0 };
 
   const contexts = cfg.context as ContextCfg[];
-  const [contextResults, ownershipRows, indexed] = await Promise.all([
+  const [contextResults, ownershipRows, agreementResults, indexed] = await Promise.all([
     Promise.all(contexts.map((c) => pointQuery(c.url, mapPoint, c.fields, distance))),
     granularity === 'local' && cfg.ownership
       ? pointQuery(cfg.ownership.url, mapPoint, cfg.ownership.fields, distance)
       : Promise.resolve([]),
-    loadInventory(cfg.inventory.url),
+    // Agreements are cheap and matter at any zoom — an Access Yes! property is
+    // often exactly what someone is hunting for.
+    Promise.all(
+      (cfg.agreements ?? []).map((a) => pointQuery(a.url, mapPoint, a.fields, distance)),
+    ),
+    loadInventory(appUrl(cfg.inventory.url)),
   ]);
 
   // ---- where am I -------------------------------------------------------
@@ -175,8 +195,26 @@ export async function queryLocation(
       code,
       label: cfg.ownership.labels?.[code] ?? code,
       name: (row[cfg.ownership.nameField] as string | null) ?? null,
+      ...(cfg.ownership.source ? { source: cfg.ownership.source } : {}),
+      ...(cfg.ownership.caveat ? { caveat: cfg.ownership.caveat } : {}),
     };
   }
+
+  // ---- access agreements ------------------------------------------------
+  const agreements: LocationResult['agreements'] = [];
+  (cfg.agreements ?? []).forEach((a, i) => {
+    for (const row of agreementResults[i] ?? []) {
+      agreements.push({
+        id: a.id,
+        label: a.label,
+        name: String(row[a.nameField] ?? '').trim() || a.label,
+        notifyRequired: a.notifyField
+          ? ['y', 'yes', '1', 'true'].includes(String(row[a.notifyField] ?? '').toLowerCase())
+          : false,
+        attributes: row,
+      });
+    }
+  });
 
   // ---- what can I hunt --------------------------------------------------
   const matches = new Map<number, HuntMatch>();
@@ -227,7 +265,15 @@ export async function queryLocation(
       'A hunt area here has more than one boundary on file and the current one is unconfirmed.',
     );
   }
-  if (ownership?.code === 'PVT') {
+  if (agreements.length > 0) {
+    // Say the useful thing, not the alarming one: this is private ground that
+    // IDFG has already secured access on.
+    const names = agreements.map((a) => `${a.label} — ${a.name}`).join('; ');
+    warnings.push(
+      `Covered by an access agreement (${names}). Public hunting access is already arranged; ` +
+        `follow the posted rules${agreements.some((a) => a.notifyRequired) ? ' and notify the landowner before hunting' : ''}.`,
+    );
+  } else if (ownership?.code === 'PVT') {
     warnings.push('The ground under this point is private. Permission is required.');
   }
   if (granularity !== 'local') {
@@ -248,6 +294,7 @@ export async function queryLocation(
     place,
     unit,
     ownership,
+    agreements,
     hunts,
     hiddenByFilters,
     warnings,

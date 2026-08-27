@@ -130,6 +130,23 @@ export function LocationPanel(): React.ReactElement | null {
         <p className="hp-loc__loading">Looking up units, ownership and hunts…</p>
       ) : (
         <div className="hp-loc__body">
+          {result.agreements.length > 0 ? (
+            <section className="hp-loc__section">
+              <h3 className="hp-loc__label">Access agreement</h3>
+              {result.agreements.map((a) => (
+                <p key={`${a.id}-${a.name}`} className="hp-loc__agreement">
+                  <strong>{a.label}</strong> — {a.name}
+                  {a.notifyRequired ? (
+                    <span className="hp-loc__agreement-note">
+                      {' '}
+                      · landowner notification required
+                    </span>
+                  ) : null}
+                </p>
+              ))}
+            </section>
+          ) : null}
+
           {result.ownership ? (
             <section className="hp-loc__section">
               <h3 className="hp-loc__label">Land under this point</h3>
@@ -137,6 +154,14 @@ export function LocationPanel(): React.ReactElement | null {
                 <strong>{result.ownership.label}</strong>
                 {result.ownership.name ? ` — ${result.ownership.name}` : ''}
               </p>
+              {/* Say where this came from and how far to trust it. It is a
+                  generalized national layer, not a title record. */}
+              {result.ownership.source ? (
+                <p className="hp-loc__provenance">
+                  Source: {result.ownership.source}
+                  {result.ownership.caveat ? ` — ${result.ownership.caveat}` : ''}
+                </p>
+              ) : null}
             </section>
           ) : null}
 
