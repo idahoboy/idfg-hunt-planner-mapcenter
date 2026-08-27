@@ -20,7 +20,12 @@ export function buildLocationLink(result: LocationResult, zoom?: number): string
 /** Plain text, because that is what survives being pasted into a text message. */
 export function formatLocationText(
   result: LocationResult,
-  opts: { huntDetailUrl?: string; rulesUrl?: string; link?: string } = {},
+  opts: {
+    huntDetailUrl?: string;
+    tagDetailUrl?: string;
+    rulesUrl?: string;
+    link?: string;
+  } = {},
 ): string {
   const L: string[] = [];
   const place = result.place.map((p) => `${p.label} ${p.value}`).join(' · ');
@@ -65,7 +70,10 @@ export function formatLocationText(
         L.push('    NOTE: covers only part of the area shown — the hunt text governs.');
       }
       if (opts.huntDetailUrl) {
-        L.push(`    ${opts.huntDetailUrl.replace('{id}', String(h.id))}`);
+        L.push(`    This hunt here:      ${opts.huntDetailUrl.replace('{id}', String(h.id))}`);
+      }
+      if (opts.tagDetailUrl && h.tagId) {
+        L.push(`    This tag everywhere: ${opts.tagDetailUrl.replace('{tagId}', String(h.tagId))}`);
       }
     }
     L.push('');

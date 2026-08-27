@@ -1485,10 +1485,18 @@ clickQuery:
         fields: ["*"]
         nameField: Name
 
-  # Every hunt has a public detail page keyed by the API's own `id` —
-  # /ifwis/huntplanner/hunt/82204 resolves to "Hunt Area 55-2 Elk Controlled
-  # Hunt 2093". Verified against live pages; a bogus id returns an empty shell.
+  # Two link patterns on the existing Hunt Planner, both verified live. They
+  # are NOT the same thing, and labelling them as if they were would mislead:
+  #
+  #   /hunt/{id}     the opportunity — this tag in THIS area.
+  #                  78277 -> "Hunt Area 76-1X Elk Controlled Hunt 2256"
+  #   /tag/{tagId}   the tag across every area it is valid in.
+  #                  31234 -> "Elk Controlled Hunt 2256"
+  #
+  # A bogus id returns a page titled "Hunt not found" rather than a 404, so a
+  # link checker has to read the title, not the status code.
   huntDetailUrl: "https://idfg.idaho.gov/ifwis/huntplanner/hunt/{id}"
+  tagDetailUrl: "https://idfg.idaho.gov/ifwis/huntplanner/tag/{tagId}"
   rulesUrl: "https://idfg.idaho.gov/rules"
 
   # Hunts are matched from the snapshot, not the network.

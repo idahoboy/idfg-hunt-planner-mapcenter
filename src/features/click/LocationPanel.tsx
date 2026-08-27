@@ -20,9 +20,11 @@ function formatCoord(lon: number, lat: number): string {
 function HuntRow({
   match,
   detailUrl,
+  tagUrl,
 }: {
   match: HuntMatch;
   detailUrl?: string;
+  tagUrl?: string;
 }): React.ReactElement {
   const { hunt } = match;
   return (
@@ -82,16 +84,33 @@ function HuntRow({
         </p>
       ) : null}
 
-      {detailUrl ? (
-        <a
-          className="hp-loc-hunt__link"
-          href={detailUrl.replace('{id}', String(hunt.id))}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Full hunt information
-          <Icon name="chevronRight" size={13} />
-        </a>
+      {/* Two different things: this opportunity in this area, versus the tag
+          wherever it is valid. Labelled apart so the distinction survives. */}
+      {detailUrl || tagUrl ? (
+        <div className="hp-loc-hunt__links">
+          {detailUrl ? (
+            <a
+              className="hp-loc-hunt__link"
+              href={detailUrl.replace('{id}', String(hunt.id))}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              This hunt here
+              <Icon name="chevronRight" size={13} />
+            </a>
+          ) : null}
+          {tagUrl && hunt.tagId ? (
+            <a
+              className="hp-loc-hunt__link"
+              href={tagUrl.replace('{tagId}', String(hunt.tagId))}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              This tag everywhere
+              <Icon name="chevronRight" size={13} />
+            </a>
+          ) : null}
+        </div>
       ) : null}
     </li>
   );
@@ -242,6 +261,9 @@ export function LocationPanel(): React.ReactElement | null {
                         {...(config.clickQuery.huntDetailUrl
                           ? { detailUrl: config.clickQuery.huntDetailUrl }
                           : {})}
+                        {...(config.clickQuery.tagDetailUrl
+                          ? { tagUrl: config.clickQuery.tagDetailUrl }
+                          : {})}
                       />
                     ))}
                   </ul>
@@ -260,6 +282,9 @@ export function LocationPanel(): React.ReactElement | null {
                     formatLocationText(result, {
                       ...(config.clickQuery.huntDetailUrl
                         ? { huntDetailUrl: config.clickQuery.huntDetailUrl }
+                        : {}),
+                      ...(config.clickQuery.tagDetailUrl
+                        ? { tagDetailUrl: config.clickQuery.tagDetailUrl }
                         : {}),
                       ...(config.clickQuery.rulesUrl
                         ? { rulesUrl: config.clickQuery.rulesUrl }

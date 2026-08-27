@@ -212,6 +212,7 @@ const ClickQuerySchema = z.object({
     })
     .optional(),
   huntDetailUrl: z.string().optional(),
+  tagDetailUrl: z.string().optional(),
   rulesUrl: z.string().optional(),
   inventory: z.object({
     url: z.string(),
