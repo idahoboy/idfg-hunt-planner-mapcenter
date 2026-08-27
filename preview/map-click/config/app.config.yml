@@ -1212,29 +1212,6 @@ huntFinder:
           Trapping: trapping
           Fishing: fishing
 
-    - id: species-distribution
-      title: Species Distribution
-      kind: distribution
-      url: ${roots.idfgRest}/Species/Distribution/MapServer/3
-      idField: TaxonID
-      titleTemplate: "{Common_Name}"
-      subtitleTemplate: "Modeled range · {Season}"
-      outFields: [OBJECTID, TaxonID, Common_Name, Scientific_Name, Category, Season, Sqkm]
-      orderBy: [Common_Name]
-      kmlTemplate: ${roots.idfgRest}/Species/Distribution/MapServer/3/query?where=TaxonID+IN+({ids})&outFields=Common_Name&returnGeometry=true&outSR=4326&f=kmz
-      detail:
-        fields:
-          - { label: Species, field: Common_Name }
-          - { label: Scientific name, field: Scientific_Name }
-          - { label: Group, field: Category }
-          - { label: Season, field: Season }
-          - { label: Range, field: Sqkm, format: number, suffix: " sq km" }
-        content: >
-          Modeled distribution, not a guarantee of presence. Use it to narrow
-          where to scout, not to decide where animals will be.
-      facetFields:
-        species: Common_Name
-
   # ---- The filter bar itself -------------------------------------------------
   # `type` drives the control: multiselect | select | search | toggleGroup | extent
   # `source: live` reads distinct values from the service named in `from`.
@@ -1263,7 +1240,6 @@ huntFinder:
         - { value: zone, label: Elk zones, sources: [elk-zones] }
         - { value: waterfowl, label: Waterfowl areas, sources: [waterfowl-areas] }
         - { value: access, label: Access Yes! properties, sources: [access-yes] }
-        - { value: distribution, label: Species distribution, sources: [species-distribution] }
 
     - id: unit
       label: Unit
@@ -1332,7 +1308,6 @@ huntFinder:
         elk-zones: [NAME]
         waterfowl-areas: [Area_Name]
         access-yes: [name, generalarea, description]
-        species-distribution: [Common_Name, Scientific_Name]
 
 # =============================================================================
 #  HIGHLIGHT  —  the legacy "Highlight a Hunt Area" tool

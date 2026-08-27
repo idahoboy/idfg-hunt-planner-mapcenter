@@ -1,1 +1,0 @@
-import{aj as s,ak as i,al as o,am as c}from"./index-fv5S10-P.js";function f({level:a,class:e,...t},l){const n=r(a);return s(`h${n}`,{...t,"aria-level":String(n),class:i(o.heading,e),role:"heading"},l)}function r(a){return c(Math.ceil(a),1,6)}function h(a,e=1){return r(a+e)}export{h as l,f as s};
