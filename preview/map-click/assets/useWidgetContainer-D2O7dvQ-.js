@@ -1,0 +1,1 @@
+import{r}from"./index-D2B_S-qX.js";function c(){const t=r.useRef(null),o=r.useCallback(()=>{const e=t.current;if(!e)return;e.replaceChildren();const n=document.createElement("div");return e.append(n),n},[]);return[t,o]}export{c as u};

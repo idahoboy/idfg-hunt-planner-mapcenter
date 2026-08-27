@@ -1,1 +1,0 @@
-import{bd as i}from"./index-BXjSY1Ra.js";import{c as n}from"./automaticLengthMeasurementUtils-BDCJJYbx.js";class o extends n{constructor(t,s,r){super(s,r),this.point=t}equals(t){return t instanceof o&&i(this.point,t.point)}}export{o as n};
