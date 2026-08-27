@@ -1,11 +1,5 @@
-import FeatureLayer from '@arcgis/core/layers/FeatureLayer';
-import MapImageLayer from '@arcgis/core/layers/MapImageLayer';
-import TileLayer from '@arcgis/core/layers/TileLayer';
-import ImageryLayer from '@arcgis/core/layers/ImageryLayer';
-import GeoJSONLayer from '@arcgis/core/layers/GeoJSONLayer';
-import CSVLayer from '@arcgis/core/layers/CSVLayer';
-import VectorTileLayer from '@arcgis/core/layers/VectorTileLayer';
 import type Layer from '@arcgis/core/layers/Layer';
+import * as reactiveUtils from '@arcgis/core/core/reactiveUtils';
 import type { LayerConfig } from '@/config/schema';
 import { buildPopupTemplate } from './popup';
 import { buildLabelClass, buildRenderer } from './symbols';
@@ -23,6 +17,23 @@ export interface LayerLoadProblem {
   usedFallback: boolean;
 }
 
+/**
+ * Layer classes are imported on demand.
+ *
+ * Importing all seven statically pulled every layer implementation into the
+ * initial chunk graph, including the five this configuration never uses — the
+ * catalogue is 42 feature layers and 3 map-image layers and nothing else.
+ */
+const LAYER_MODULES: Record<LayerConfig['type'], () => Promise<{ default: new (p: never) => Layer }>> = {
+  feature: () => import('@arcgis/core/layers/FeatureLayer') as never,
+  'map-image': () => import('@arcgis/core/layers/MapImageLayer') as never,
+  tile: () => import('@arcgis/core/layers/TileLayer') as never,
+  imagery: () => import('@arcgis/core/layers/ImageryLayer') as never,
+  geojson: () => import('@arcgis/core/layers/GeoJSONLayer') as never,
+  csv: () => import('@arcgis/core/layers/CSVLayer') as never,
+  'vector-tile': () => import('@arcgis/core/layers/VectorTileLayer') as never,
+};
+
 function applyCommon(layer: Layer, cfg: LayerConfig): void {
   layer.id = cfg.id;
   layer.title = cfg.title;
@@ -32,107 +43,155 @@ function applyCommon(layer: Layer, cfg: LayerConfig): void {
   if (cfg.maxScale !== undefined) (layer as unknown as { maxScale: number }).maxScale = cfg.maxScale;
 }
 
-function buildFeatureLayer(cfg: LayerConfig, url: string): FeatureLayer {
-  const layer = new FeatureLayer({
-    url,
-    outFields: cfg.outFields ?? ['*'],
-    ...(cfg.definitionExpression ? { definitionExpression: cfg.definitionExpression } : {}),
-    ...(cfg.refreshIntervalMinutes ? { refreshInterval: cfg.refreshIntervalMinutes } : {}),
-  });
-  if (cfg.popup) layer.popupTemplate = buildPopupTemplate(cfg.popup, cfg.title);
-  if (cfg.renderer) layer.renderer = buildRenderer(cfg.renderer);
-  if (cfg.labels) {
-    layer.labelingInfo = [buildLabelClass(cfg.labels)];
-    layer.labelsVisible = true;
-  }
-  return layer;
-}
+async function construct(cfg: LayerConfig, url: string): Promise<Layer> {
+  const mod = await LAYER_MODULES[cfg.type]();
+  const Ctor = mod.default;
 
-function buildMapImageLayer(cfg: LayerConfig, url: string): MapImageLayer {
-  const layer = new MapImageLayer({
-    url,
-    ...(cfg.refreshIntervalMinutes ? { refreshInterval: cfg.refreshIntervalMinutes } : {}),
-  });
-  if (cfg.sublayers?.length || cfg.sublayerDefinitions) {
-    // MapImageLayer sublayers must be configured after the service metadata
-    // loads, otherwise the ids are not yet known.
-    void layer.when(() => {
-      const visible = new Set(cfg.sublayers ?? []);
-      layer.allSublayers.forEach((sub) => {
-        if (cfg.sublayers?.length) sub.visible = visible.has(sub.id);
-        const def = cfg.sublayerDefinitions?.[String(sub.id)];
-        if (def) sub.definitionExpression = def;
+  if (cfg.type === 'feature') {
+    const layer = new Ctor({
+      url,
+      outFields: cfg.outFields ?? ['*'],
+      ...(cfg.definitionExpression ? { definitionExpression: cfg.definitionExpression } : {}),
+      ...(cfg.refreshIntervalMinutes ? { refreshInterval: cfg.refreshIntervalMinutes } : {}),
+    } as never) as Layer & {
+      popupTemplate?: unknown;
+      renderer?: unknown;
+      labelingInfo?: unknown;
+      labelsVisible?: boolean;
+    };
+    if (cfg.popup) layer.popupTemplate = buildPopupTemplate(cfg.popup, cfg.title);
+    if (cfg.renderer) layer.renderer = buildRenderer(cfg.renderer);
+    if (cfg.labels) {
+      layer.labelingInfo = [buildLabelClass(cfg.labels)];
+      layer.labelsVisible = true;
+    }
+    return layer;
+  }
+
+  if (cfg.type === 'map-image') {
+    const layer = new Ctor({
+      url,
+      ...(cfg.refreshIntervalMinutes ? { refreshInterval: cfg.refreshIntervalMinutes } : {}),
+    } as never) as Layer & { allSublayers?: { forEach: (f: (s: never) => void) => void } };
+
+    if (cfg.sublayers?.length || cfg.sublayerDefinitions) {
+      // Sublayer ids are only known once the service metadata has loaded.
+      void layer.when(() => {
+        const visible = new Set(cfg.sublayers ?? []);
+        layer.allSublayers?.forEach((sub: never) => {
+          const s = sub as unknown as { id: number; visible: boolean; definitionExpression?: string };
+          if (cfg.sublayers?.length) s.visible = visible.has(s.id);
+          const def = cfg.sublayerDefinitions?.[String(s.id)];
+          if (def) s.definitionExpression = def;
+        });
       });
-    });
+    }
+    return layer;
   }
-  return layer;
+
+  return new Ctor({ url } as never);
 }
 
 /**
- * Builds one layer from config, falling back to `fallbackUrl` when the primary
- * service fails to load. The legacy app had no fallback: a dead endpoint threw
- * inside the AMD callback and took the rest of the module with it.
+ * Loads a layer, falling back to `fallbackUrl` if the primary fails.
+ *
+ * Separated from construction because most layers are never loaded at boot:
+ * see `buildLayers`.
  */
-export async function buildLayer(
+async function loadWithFallback(
+  built: Layer,
   cfg: LayerConfig,
-  onProblem: (problem: LayerLoadProblem) => void,
-): Promise<BuiltLayer | null> {
-  const urls = [cfg.url, ...(cfg.fallbackUrl ? [cfg.fallbackUrl] : [])];
-
-  for (const [index, url] of urls.entries()) {
-    const effective = cfg;
-
-
-    let layer: Layer;
-    switch (cfg.type) {
-      case 'feature':      layer = buildFeatureLayer(effective, url); break;
-      case 'map-image':    layer = buildMapImageLayer(effective, url); break;
-      case 'tile':         layer = new TileLayer({ url }); break;
-      case 'imagery':      layer = new ImageryLayer({ url }); break;
-      case 'geojson':      layer = new GeoJSONLayer({ url }); break;
-      case 'csv':          layer = new CSVLayer({ url }); break;
-      case 'vector-tile':  layer = new VectorTileLayer({ url }); break;
-      default:
-        onProblem({
-          layerId: cfg.id, title: cfg.title, url,
-          message: `unsupported layer type "${cfg.type}"`, usedFallback: false,
-        });
-        return null;
+  onProblem: (p: LayerLoadProblem) => void,
+): Promise<Layer | null> {
+  try {
+    await built.load();
+    return built;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!cfg.fallbackUrl) {
+      onProblem({ layerId: cfg.id, title: cfg.title, url: cfg.url, message, usedFallback: false });
+      return null;
     }
-
-    applyCommon(layer, effective);
-
     try {
-      await layer.load();
-      if (index > 0) {
-        onProblem({
-          layerId: cfg.id, title: cfg.title, url: cfg.url,
-          message: 'primary service unavailable; loaded fallback',
-          usedFallback: true,
-        });
-      }
-      return { layer, config: effective };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      const isLast = index === urls.length - 1;
-      if (isLast) {
-        onProblem({ layerId: cfg.id, title: cfg.title, url, message, usedFallback: false });
-        return null;
-      }
+      const alt = await construct(cfg, cfg.fallbackUrl);
+      applyCommon(alt, cfg);
+      await alt.load();
+      onProblem({
+        layerId: cfg.id,
+        title: cfg.title,
+        url: cfg.url,
+        message: 'primary service unavailable; loaded fallback',
+        usedFallback: true,
+      });
+      return alt;
+    } catch (err2) {
+      onProblem({
+        layerId: cfg.id,
+        title: cfg.title,
+        url: cfg.fallbackUrl,
+        message: err2 instanceof Error ? err2.message : String(err2),
+        usedFallback: false,
+      });
+      return null;
     }
   }
-  return null;
 }
 
 /**
- * Builds every layer concurrently. One failure never blocks the others — the
- * whole point of the rewrite. Layers are returned in config order so the map
- * draw order stays deterministic.
+ * Builds every configured layer, but only *loads* the ones that start visible.
+ *
+ * Loading a layer costs a metadata round-trip to its service. This catalogue is
+ * 45 layers across ten hosts and exactly one of them is visible at boot, so
+ * eagerly loading all of them spent 44 requests — and several seconds — on
+ * layers nobody had asked to see. The rest now load the first time they are
+ * switched on, which is also the first moment their metadata is needed.
+ *
+ * A layer that fails on first reveal still reports through `onProblem`, so the
+ * service-health panel stays accurate; it simply reports later than it used to.
  */
 export async function buildLayers(
   configs: LayerConfig[],
   onProblem: (problem: LayerLoadProblem) => void,
 ): Promise<BuiltLayer[]> {
-  const results = await Promise.all(configs.map((cfg) => buildLayer(cfg, onProblem)));
-  return results.filter((r): r is BuiltLayer => r !== null);
+  const built = await Promise.all(
+    configs.map(async (cfg) => {
+      let layer: Layer;
+      try {
+        layer = await construct(cfg, cfg.url);
+      } catch (err) {
+        onProblem({
+          layerId: cfg.id,
+          title: cfg.title,
+          url: cfg.url,
+          message: err instanceof Error ? err.message : String(err),
+          usedFallback: false,
+        });
+        return null;
+      }
+      applyCommon(layer, cfg);
+      return { layer, config: cfg } satisfies BuiltLayer;
+    }),
+  );
+
+  const ok = built.filter((b): b is BuiltLayer => b !== null);
+
+  await Promise.all(
+    ok.map(async (b) => {
+      if (b.config.visible) {
+        const loaded = await loadWithFallback(b.layer, b.config, onProblem);
+        if (loaded && loaded !== b.layer) b.layer = loaded;
+        return;
+      }
+      // Deferred: load on first reveal, once.
+      const handle = reactiveUtils.when(
+        () => b.layer.visible,
+        () => {
+          handle.remove();
+          void loadWithFallback(b.layer, b.config, onProblem);
+        },
+      );
+    }),
+  );
+
+  return ok;
 }

@@ -1,29 +1,26 @@
+import { Suspense, lazy } from 'react';
 import { useConfig } from '@/config/ConfigContext';
 import { useAppStore } from '@/state/store';
 import { toolEntries } from './toolEntries';
 import { Icon } from '@/components/Icon';
-import { LayersPanel } from '@/features/layers/LayersPanel';
-import { BasemapPanel } from '@/features/layers/BasemapPanel';
-import { HighlightPanel } from '@/features/highlight/HighlightPanel';
-import { UploadPanel } from '@/features/upload/UploadPanel';
-import { SearchPanel } from '@/features/search/SearchPanel';
-import { MeasurePanel } from '@/features/measure/MeasurePanel';
-import { DrawPanel } from '@/features/draw/DrawPanel';
-import { PrintPanel } from '@/features/print/PrintPanel';
-import { SharePanel } from '@/features/share/SharePanel';
-import { HealthPanel } from '@/features/help/HealthPanel';
 
-const PANELS: Record<string, () => React.ReactElement> = {
-  layers: LayersPanel,
-  basemap: BasemapPanel,
-  highlight: HighlightPanel,
-  upload: UploadPanel,
-  search: SearchPanel,
-  measure: MeasurePanel,
-  draw: DrawPanel,
-  print: PrintPanel,
-  share: SharePanel,
-  health: HealthPanel,
+/**
+ * Tool panels load when their tool is opened.
+ *
+ * Importing all ten statically pulled Esri's Print, Sketch, Measurement and
+ * Legend widgets into the initial bundle, for tools most sessions never touch.
+ */
+const PANELS: Record<string, React.ComponentType> = {
+  layers: lazy(() => import('@/features/layers/LayersPanel').then((m) => ({ default: m.LayersPanel }))),
+  basemap: lazy(() => import('@/features/layers/BasemapPanel').then((m) => ({ default: m.BasemapPanel }))),
+  highlight: lazy(() => import('@/features/highlight/HighlightPanel').then((m) => ({ default: m.HighlightPanel }))),
+  upload: lazy(() => import('@/features/upload/UploadPanel').then((m) => ({ default: m.UploadPanel }))),
+  search: lazy(() => import('@/features/search/SearchPanel').then((m) => ({ default: m.SearchPanel }))),
+  measure: lazy(() => import('@/features/measure/MeasurePanel').then((m) => ({ default: m.MeasurePanel }))),
+  draw: lazy(() => import('@/features/draw/DrawPanel').then((m) => ({ default: m.DrawPanel }))),
+  print: lazy(() => import('@/features/print/PrintPanel').then((m) => ({ default: m.PrintPanel }))),
+  share: lazy(() => import('@/features/share/SharePanel').then((m) => ({ default: m.SharePanel }))),
+  health: lazy(() => import('@/features/help/HealthPanel').then((m) => ({ default: m.HealthPanel }))),
 };
 
 export function Sidebar(): React.ReactElement {
@@ -38,7 +35,7 @@ export function Sidebar(): React.ReactElement {
 
   const entries = toolEntries(config).map((entry) => ({
     ...entry,
-    render: PANELS[entry.id] ?? ((): React.ReactElement => <></>),
+    render: PANELS[entry.id],
   }));
 
   const active = entries.find((e) => e.id === activeTool && e.id !== 'huntFinder');
@@ -91,7 +88,9 @@ export function Sidebar(): React.ReactElement {
             </button>
           </header>
           <div className="hp-toolpanel__body">
-            <Panel />
+            <Suspense fallback={<p className="hp-toolpanel__loading">Loading…</p>}>
+              <Panel />
+            </Suspense>
           </div>
         </section>
       ) : null}
