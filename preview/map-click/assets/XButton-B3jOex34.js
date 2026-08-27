@@ -1,0 +1,5 @@
+import{n as l}from"./ref-Dhr0nzEw.js";import{i as p}from"./keyed-CO1CQvGR.js";import{cp as x,i as $,k as m}from"./index-fv5S10-P.js";import{g as d}from"./component-hINDx3DN.js";/*! All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://github.com/Esri/calcite-design-system/blob/dev/LICENSE.md for details.
+v3.3.3 */const g="24px",k="32px",I="44px",R="48px";/*! All material copyright ESRI, All Rights Reserved, unless otherwise specified.
+See https://github.com/Esri/calcite-design-system/blob/dev/LICENSE.md for details.
+v3.3.3 */const o={button:"x-button",buttonRound:"x-button--round"},X=({disabled:c,focusable:a,key:n,label:e,onClick:i,ref:s,round:u=!0,scale:t,title:b})=>p(n,m`<button .ariaLabel=${e} class=${$({[(r=>`x-button--${r}`)(t)]:!0,[o.button]:!0,[o.buttonRound]:u})} .disabled=${c} @click=${i} .tabIndex=${a?0:-1} title=${b??x} type=button ${l(s)}><calcite-icon icon=x .scale=${d(t)}></calcite-icon></button>`);export{o as C,X,g as a,k as b,R as c,I as d};
