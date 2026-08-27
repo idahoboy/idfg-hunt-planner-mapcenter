@@ -493,6 +493,23 @@ two meanings.
 
 ## Backlog
 
+### Brochure page numbers — needs IDFG
+
+A hunt now links to its own page (`/ifwis/huntplanner/hunt/{id}`, verified
+live), but the request was also for **the page number in the seasons
+brochure**, and nothing in any source carries it. The API has no page field,
+and the brochure is a PDF with no published index.
+
+Two ways it could work, both needing a decision rather than code:
+
+- IDFG publishes a hunt-id → page mapping, even as a CSV refreshed each year.
+  Cheapest, and it makes the snapshot builder able to stamp it.
+- The builder parses the brochure PDF and infers page numbers by matching hunt
+  numbers. Doable, but it is inference against a layout that changes annually,
+  and a wrong page number is worse than none.
+
+Until then the panel links the brochure as a whole and says it governs.
+
 ### Group-level transparency
 
 Per-layer opacity already exists. What is missing is a master fader on each

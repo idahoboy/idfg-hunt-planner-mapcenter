@@ -80,6 +80,41 @@ export function useMapClick(): void {
       })();
     });
 
+    // A shared link carries ?at=1 alongside the X/Y/zoom the map already
+    // round-trips, so the recipient lands on the answer rather than on a bare
+    // coordinate they have to click for themselves.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('at') === '1') {
+      const center = view.center;
+      if (center) {
+        const id = ++runId.current;
+        setClickLoading(true);
+        marker.geometry = center;
+        searchLayer.add(marker);
+        void (async () => {
+          try {
+            const visible = new Set(
+              Object.entries(latest.current.layerVisibility)
+                .filter(([, on]) => on)
+                .map(([layerId]) => layerId),
+            );
+            const result = await queryLocation(
+              view,
+              center,
+              config,
+              latest.current.filters,
+              visible,
+            );
+            if (id !== runId.current) return;
+            setClickResult(result);
+            useAppStore.getState().setClickDetailOpen(true);
+          } finally {
+            if (id === runId.current) setClickLoading(false);
+          }
+        })();
+      }
+    }
+
     return () => {
       handle.remove();
       searchLayer.remove(marker);

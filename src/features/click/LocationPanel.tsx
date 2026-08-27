@@ -1,8 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useAppStore } from '@/state/store';
 import { useConfig } from '@/config/ConfigContext';
 import { Icon } from '@/components/Icon';
 import type { HuntMatch, LocationResult } from './locationQuery';
+import { buildLocationLink, copyText, formatLocationText } from './shareLocation';
+import { useMap } from '@/map/MapProvider';
 
 const GRADE_LABEL: Record<string, string> = {
   open: 'Open access',
@@ -15,7 +17,13 @@ function formatCoord(lon: number, lat: number): string {
   return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
 }
 
-function HuntRow({ match }: { match: HuntMatch }): React.ReactElement {
+function HuntRow({
+  match,
+  detailUrl,
+}: {
+  match: HuntMatch;
+  detailUrl?: string;
+}): React.ReactElement {
   const { hunt } = match;
   return (
     <li className="hp-loc-hunt">
@@ -73,6 +81,18 @@ function HuntRow({ match }: { match: HuntMatch }): React.ReactElement {
           More than one boundary is on file for this hunt area; the current one is unconfirmed.
         </p>
       ) : null}
+
+      {detailUrl ? (
+        <a
+          className="hp-loc-hunt__link"
+          href={detailUrl.replace('{id}', String(hunt.id))}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Full hunt information
+          <Icon name="chevronRight" size={13} />
+        </a>
+      ) : null}
     </li>
   );
 }
@@ -84,6 +104,9 @@ export function LocationPanel(): React.ReactElement | null {
   const clear = useAppStore((s) => s.clearClickResult);
   const detailOpen = useAppStore((s) => s.clickDetailOpen);
   const setDetailOpen = useAppStore((s) => s.setClickDetailOpen);
+  const showToast = useAppStore((s) => s.showToast);
+  const { view } = useMap();
+  const [copied, setCopied] = useState<'text' | 'link' | null>(null);
 
   const grouped = useMemo(() => {
     if (!result) return [];
@@ -213,13 +236,76 @@ export function LocationPanel(): React.ReactElement | null {
                   <h4 className="hp-loc__species">{species}</h4>
                   <ul className="hp-loc__hunts">
                     {matches.map((m) => (
-                      <HuntRow key={m.hunt.id} match={m} />
+                      <HuntRow
+                        key={m.hunt.id}
+                        match={m}
+                        {...(config.clickQuery.huntDetailUrl
+                          ? { detailUrl: config.clickQuery.huntDetailUrl }
+                          : {})}
+                      />
                     ))}
                   </ul>
                 </div>
               ))
             )}
           </section>
+
+          <div className="hp-loc__actions">
+            <button
+              type="button"
+              className="hp-btn hp-btn--ghost hp-btn--sm"
+              onClick={() => {
+                void (async () => {
+                  const ok = await copyText(
+                    formatLocationText(result, {
+                      ...(config.clickQuery.huntDetailUrl
+                        ? { huntDetailUrl: config.clickQuery.huntDetailUrl }
+                        : {}),
+                      ...(config.clickQuery.rulesUrl
+                        ? { rulesUrl: config.clickQuery.rulesUrl }
+                        : {}),
+                      link: buildLocationLink(result, view?.zoom),
+                    }),
+                  );
+                  setCopied(ok ? 'text' : null);
+                  showToast(
+                    ok ? 'Details copied' : 'Could not copy — select and copy manually',
+                    ok ? 'success' : 'error',
+                  );
+                })();
+              }}
+            >
+              <Icon name={copied === 'text' ? 'check' : 'table'} size={14} />
+              Copy details
+            </button>
+
+            <button
+              type="button"
+              className="hp-btn hp-btn--ghost hp-btn--sm"
+              onClick={() => {
+                void (async () => {
+                  const ok = await copyText(buildLocationLink(result, view?.zoom));
+                  setCopied(ok ? 'link' : null);
+                  showToast(
+                    ok ? 'Link copied' : 'Could not copy the link',
+                    ok ? 'success' : 'error',
+                  );
+                })();
+              }}
+            >
+              <Icon name={copied === 'link' ? 'check' : 'link'} size={14} />
+              Copy link
+            </button>
+
+            <button
+              type="button"
+              className="hp-btn hp-btn--ghost hp-btn--sm"
+              onClick={() => window.print()}
+            >
+              <Icon name="printer" size={14} />
+              Print
+            </button>
+          </div>
 
           {result.accessCaveat ? (
             <p className="hp-loc__caveat">

@@ -751,6 +751,14 @@ body {
 .hp-loc__access li.is-onsite .hp-loc__access-dist {
   color: #2C5228; font-weight: 700; text-transform: uppercase;
 }
+.hp-loc__actions {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--hp-border);
+}
+.hp-loc-hunt__link {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-top: 8px; font-size: 12.5px; font-weight: 600;
+}
 .hp-loc__caveat {
   display: flex; gap: 8px; align-items: flex-start;
   margin: 14px 0 0; padding: 10px 11px;
@@ -809,6 +817,30 @@ body {
 .hp-loc__footnote {
   margin: 16px 0 0; padding-top: 10px; border-top: 1px solid var(--hp-border);
   font-size: 11.5px; color: var(--hp-text-muted);
+}
+
+/* ============================= print ============================= */
+/* Printing the whole application produces a page of chrome and a grey box
+   where the map was. When a location answer is open, print that instead —
+   it is the thing anyone would actually want on paper in a truck. */
+@media print {
+  .hp-header, .hp-filterbar, .hp-sidebar, .hp-results,
+  .hp-mapwrap, .hp-locsum, .hp-viewtoggle, .hp-toolsfab,
+  .hp-loc__actions, .hp-loc__back, .hp-iconbtn { display: none !important; }
+
+  .hp-app, .hp-body { display: block !important; height: auto !important; }
+
+  .hp-loc {
+    position: static !important;
+    width: auto !important; max-width: none !important;
+    height: auto !important; max-height: none !important;
+    border: 0 !important; box-shadow: none !important;
+    animation: none !important;
+  }
+  .hp-loc__body { overflow: visible !important; }
+  .hp-loc-hunt { break-inside: avoid; }
+  .hp-loc__warnings li, .hp-loc__caveat { border: 1px solid #999; background: none !important; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 10px; word-break: break-all; }
 }
 
 /* ============================ fatal ============================ */
