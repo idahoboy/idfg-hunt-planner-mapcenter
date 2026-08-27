@@ -1,1 +1,0 @@
-import{ak as s,al as i,am as o,an as c}from"./index-CRzb-W8M.js";function f({level:a,class:n,...t},l){const e=r(a);return s(`h${e}`,{...t,"aria-level":String(e),class:i(o.heading,n),role:"heading"},l)}function r(a){return c(Math.ceil(a),1,6)}function h(a,n=1){return r(a+n)}export{h as l,f as s};

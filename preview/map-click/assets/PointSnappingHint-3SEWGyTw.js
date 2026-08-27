@@ -1,1 +1,0 @@
-import{H as i}from"./vec32-BBWd0QdN.js";import{c as n}from"./automaticLengthMeasurementUtils-BPYiK1jq.js";class o extends n{constructor(t,r,s){super(r,s),this.point=t}equals(t){return t instanceof o&&i(this.point,t.point)}}export{o as n};

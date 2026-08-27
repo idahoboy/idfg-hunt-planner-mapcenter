@@ -1059,255 +1059,120 @@ layers:
 # =============================================================================
 huntFinder:
   enabled: true
-  cacheTtlMinutes: 60
   pageSize: 50
-  # Results rail behaviour, VRBO-style.
+
+  # The finder reads the snapshot, not the map services.
+  #
+  # The five axes below all describe the hunt itself and are genuinely
+  # parallel. The old toggle mixed geography (units, elk zones), hunt class
+  # (controlled) and programme (Access Yes!) in one control, which asked the
+  # reader to choose between a noun and a place. Geography is now its own
+  # dimension and access programmes live in the click result, where they
+  # already were.
+  #
+  # None of these exist on the map services — method, ornament, season and tag
+  # are inventory attributes — so the finder had to move to the snapshot for
+  # them to be offered at all.
+  inventory:
+    url: /inventory.json
+
   results:
-    hoverHighlights: true      # hovering a card flashes the geometry on the map
-    clickZooms: true           # clicking a card zooms + opens the popup
-    syncToExtent: true         # "Search as I move the map" toggle
+    hoverHighlights: true
+    clickZooms: true
+    syncToExtent: true
     syncDefault: false
-    emptyMessage: No hunt areas match these filters. Try clearing a filter.
+    emptyMessage: No hunts match these filters. Try clearing one.
+    caveat: >
+      Some hunt areas are stored with more than one boundary version and the
+      current one is not yet confirmed. Check the boundary against the printed
+      seasons and rules before relying on it.
 
-  sources:
-    - id: controlled-hunts
-      title: Controlled Hunt Areas
-      kind: controlled
-      url: ${roots.idfgRest}/Hunting/MapServer/4
-      idField: AreaID
-      titleTemplate: "{BigGame} Hunt Area {HuntArea}"
-      subtitleTemplate: "Controlled hunt area"
-      # This service stores several rows per hunt area (2,162 rows for 574
-      # named areas): the same BigGame + HuntArea appears once per stored
-      # boundary version, each with its own AreaID and Year.
-      #
-      # Do NOT reintroduce Year here — it is not a hunt season.
-      #
-      # For a deduped source the identity fields ARE the projection: DISTINCT
-      # applies to the selected columns, and the server requires ORDER BY to
-      # reference only projected columns. AreaRank is carried along because it
-      # is constant per hunt area and gives the list its intended ordering.
-      outFields: [BigGame, HuntArea, AreaRank]
-      orderBy: [AreaRank, HuntArea]
-      dedupeBy: [BigGame, HuntArea, AreaRank]
-      detail:
-        fields:
-          - { label: Species, field: BigGame }
-          - { label: Hunt area, field: HuntArea }
-        links:
-          - { label: Controlled hunt seasons and rules, url: "https://idfg.idaho.gov/hunt/controlled" }
-      #
-      # OPEN QUESTION — pending confirmation from IDFG GIS (raised 2026-08-25).
-      #
-      # A named hunt area is stored more than once, each version with its own
-      # AreaID. Elk "3-2" is AreaID 1541 (AreaRank 125) and AreaID 2762
-      # (AreaRank 124). Nothing in the service identifies which boundary is
-      # current: FLAG is 1 on both, and FLAG=1 covers only Deer, Elk, Moose,
-      # Pronghorn and Turkey. Year is NOT a season and must not be used.
-      #
-      # Until the data owner confirms the rule, the highlight and the KML use
-      # whichever row the service returns first. That is arbitrary, so it is
-      # surfaced to the user via `caveat` below rather than presented as
-      # authoritative. When the rule is known, encode it here (an ORDER BY on
-      # the geometry lookup, or a filter on whatever field marks the current
-      # version) — no application code should need to change.
-      caveat: >
-        Some hunt areas are stored with more than one boundary version and the
-        current one is not yet confirmed. Check the boundary against the
-        printed seasons and rules before relying on it.
-      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/4/query?where=AreaID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz
-      facetFields:
-        species: BigGame
-      # Legacy pick lists grouped Rocky Mtn / California Sheep under "Bighorn
-      # Sheep" and displayed Furbearer as "Beaver". Preserved here as data.
-      speciesAliases:
-        Rocky Mtn Sheep: Bighorn Sheep
-        California Sheep: Bighorn Sheep
-        Furbearer: Beaver
-
-    - id: game-units
-      # An authoritative boundary layer, NOT a list of general season hunts.
-      # General hunts are defined in the seasons brochure and reference these
-      # units by name; once the inventory is wired in they become their own
-      # source and this stays what it is — the units themselves.
-      title: Game Management Units
-      kind: unit
-      url: ${roots.idfgRest}/Hunting/MapServer/3
-      idField: ID
-      titleTemplate: "Unit {NAME}"
-      subtitleTemplate: "General season unit · Elk Zone {Elk_Zone}"
-      outFields: [OBJECTID, ID, NAME, Elk_Zone, Name_sort, regular_deer_url, elkZone_url_1, gmu_wtd_url]
-      orderBy: [Name_sort]
-      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/3/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz
-      detail:
-        fields:
-          - { label: Unit, field: NAME }
-          - { label: Elk zone, field: Elk_Zone }
-        links:
-  
-          - { label: White-tailed deer information, field: gmu_wtd_url }
-      facetFields:
-        unit: NAME
-        elkZone: Elk_Zone
-
-    - id: elk-zones
-      title: Elk Management Zones
-      kind: zone
-      url: ${roots.idfgRest}/Hunting/MapServer/1
-      idField: ID
-      titleTemplate: "{NAME} Elk Zone"
-      subtitleTemplate: Elk management zone
-      outFields: [OBJECTID, ID, NAME]
-      orderBy: [NAME]
-      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/1/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz
-      speciesScope: [Elk]
-      detail:
-        fields:
-          - { label: Zone, field: NAME }
-        content: >
-          Elk seasons are set by zone. Check the zone's season dates and tag
-          quotas before hunting.
-      facetFields:
-        elkZone: NAME
-
-    - id: waterfowl-areas
-      title: Waterfowl Hunt Areas
-      kind: waterfowl
-      url: ${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0
-      idField: huntID
-      titleTemplate: "{Area_Name}"
-      subtitleTemplate: Waterfowl hunt area
-      outFields: [OBJECTID, huntID, Area_Name, AreaNote, Acres]
-      orderBy: [Area_Name]
-      speciesScope: [Waterfowl]
-      kmlTemplate: ${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0/query?where=huntID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz
-      detail:
-        fields:
-          - { label: Area, field: Area_Name }
-          - { label: Note, field: AreaNote }
-          - { label: Acres, field: Acres, format: number }
-
-    - id: access-yes
-      title: Access Yes! Properties
-      kind: access
-      url: ${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0
-      idField: id
-      titleTemplate: "{name}"
-      subtitleTemplate: "Access Yes! · {generalarea} · {accesspublicacres} public acres"
-      outFields: ["*"]
-      orderBy: [name]
-      baseWhere: "bidid IS NOT NULL"
-      # Reuses the popup already written for the Access Yes! layer rather than
-      # repeating it. Without this the card would list raw columns — bidid,
-      # publishstatus, landnotify — because this source selects "*".
-      detailFromLayer: access-yes
-      facetFields:
-        region: primaryregion
-        accessOpportunity:
-          # facet value -> field that must be 'Y'/1 on the record
-          Big game: biggame
-          Upland game: uplandgame
-          Small game: smallgame
-          Waterfowl: waterfowl
-          Trapping: trapping
-          Fishing: fishing
-
-  # ---- The filter bar itself -------------------------------------------------
-  # `type` drives the control: multiselect | select | search | toggleGroup | extent
-  # `source: live` reads distinct values from the service named in `from`.
   facets:
     - id: species
       label: Species
+      field: species
       type: multiselect
       icon: deer
       placeholder: Any species
-      primary: true            # primary facets sit in the always-visible bar
-      source: live
-      from: controlled-hunts
-      field: BigGame
-      applyAliases: true
+      primary: true
       sortBy: label
 
-    - id: huntType
+    - id: huntClass
       label: Hunt type
+      field: type
       type: toggleGroup
       icon: tag
       primary: true
-      source: static
       options:
-        - { value: unit, label: Game management units, sources: [game-units] }
-        - { value: controlled, label: Controlled hunts, sources: [controlled-hunts] }
-        - { value: zone, label: Elk zones, sources: [elk-zones] }
-        - { value: waterfowl, label: Waterfowl areas, sources: [waterfowl-areas] }
-        - { value: access, label: Access Yes! properties, sources: [access-yes] }
+        - { value: general, label: General season }
+        - { value: controlled, label: Controlled hunt }
+
+    # Sharper than weapon and currently offered nowhere: it splits the
+    # inventory almost in thirds.
+    - id: ornament
+      label: Sex / antler
+      field: ornament
+      type: multiselect
+      icon: deer
+      placeholder: Any restriction
+      primary: true
+      sortBy: label
 
     - id: unit
       label: Unit
+      field: unitsReferenced
+      multiValue: true
       type: multiselect
       icon: hash
       placeholder: Any unit
       primary: true
-      source: live
-      from: game-units
-      field: NAME
-      sortBy: natural          # 1, 2, 4A, 4B, 10, 10A — not lexicographic
+      sortBy: natural
 
-    - id: elkZone
-      label: Elk zone
+    # 614 of 1,052 hunts are "Any Weapon", so this filters little until someone
+    # picks archery — which is why it is not a primary facet.
+    - id: weapon
+      label: Weapon
+      field: method
       type: multiselect
-      icon: mountain
-      placeholder: Any zone
-      source: live
-      from: elk-zones
-      field: NAME
+      icon: crosshair
+      placeholder: Any weapon
       sortBy: label
 
-    - id: region
-      label: IDFG region
+    - id: tagType
+      label: Tag
+      field: tagArea
       type: multiselect
-      icon: map
-      placeholder: Any region
-      primary: true
-      source: live
-      from: regions-lookup
-      field: NAME
+      icon: tag
+      placeholder: Any tag
       sortBy: label
-      lookup:
-        url: ${roots.idfgAgol}/Administrative_Regions/FeatureServer/0
-        field: NAME
-      # Region is spatial for most sources: intersect the region geometry
-      # rather than matching an attribute.
-      spatial: true
 
-    - id: accessOpportunity
-      label: Allowed activity
+    - id: season
+      label: Season
+      field: season
+      type: multiselect
+      icon: calendar
+      placeholder: Any season
+      sortBy: label
+
+    - id: access
+      label: Access
+      field: accessGrade
       type: multiselect
       icon: check
-      placeholder: Any activity
-      source: static
-      appliesTo: [access-yes]
-      options:
-        - { value: Big game, label: Big game }
-        - { value: Upland game, label: Upland game }
-        - { value: Small game, label: Small game }
-        - { value: Waterfowl, label: Waterfowl }
-        - { value: Trapping, label: Trapping }
-        - { value: Fishing, label: Fishing }
-
+      placeholder: Any access
+      labels:
+        open: Open access
+        limited: Limited access
+        permission: Permission required
+        rule: Special rule
 
     - id: keyword
       label: Search
       type: search
       icon: search
       primary: true
-      placeholder: Unit, zone, hunt area, or property name
-      # Fields searched per source, LIKE '%term%'
-      searchFields:
-        controlled-hunts: [HuntArea, BigGame]
-        game-units: [NAME]
-        elk-zones: [NAME]
-        waterfowl-areas: [Area_Name]
-        access-yes: [name, generalarea, description]
+      placeholder: Tag, hunt number, unit or area
+      searchFields: [tag, area, season, tagArea]
 
 # =============================================================================
 #  HIGHLIGHT  —  the legacy "Highlight a Hunt Area" tool
@@ -1318,6 +1183,49 @@ huntFinder:
 #  Hunt Planner search results keep resolving.
 # =============================================================================
 highlight:
+  # Pick lists for the legacy "Highlight a Hunt Area" tool. These used to ride
+  # on huntFinder.sources; the finder now reads the snapshot, so they live with
+  # the tool that actually uses them.
+  pickLists:
+    - id: game-units
+      title: Game Management Units
+      url: "${roots.idfgRest}/Hunting/MapServer/3"
+      idField: ID
+      labelField: NAME
+      sortBy: natural
+      outFields: [ID, NAME, Name_sort]
+      orderBy: [Name_sort]
+      titleTemplate: "Unit {NAME}"
+      kmlTemplate: "${roots.idfgRest}/Hunting/MapServer/3/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz"
+    - id: elk-zones
+      title: Elk Management Zones
+      url: "${roots.idfgRest}/Hunting/MapServer/1"
+      idField: ID
+      labelField: NAME
+      outFields: [ID, NAME]
+      orderBy: [NAME]
+      titleTemplate: "{NAME} Elk Zone"
+      kmlTemplate: "${roots.idfgRest}/Hunting/MapServer/1/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz"
+    - id: controlled-hunts
+      title: Controlled Hunt Areas
+      url: "${roots.idfgRest}/Hunting/MapServer/4"
+      idField: AreaID
+      labelField: HuntArea
+      sortBy: natural
+      outFields: [AreaID, HuntArea, BigGame, AreaRank]
+      orderBy: [AreaRank, HuntArea]
+      titleTemplate: "{BigGame} Hunt Area {HuntArea}"
+      kmlTemplate: "${roots.idfgRest}/Hunting/MapServer/4/query?where=AreaID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz"
+    - id: waterfowl-areas
+      title: Waterfowl Hunt Areas
+      url: "${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0"
+      idField: huntID
+      labelField: Area_Name
+      outFields: [huntID, Area_Name]
+      orderBy: [Area_Name]
+      titleTemplate: "{Area_Name}"
+      kmlTemplate: "${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0/query?where=huntID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz"
+
   symbol:
     fill: "rgba(154, 32, 219, 0.10)"
     outline: "#9a20db"
