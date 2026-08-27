@@ -115,7 +115,7 @@ const FacetSchema = z.object({
   icon: z.string().optional(),
   placeholder: z.string().optional(),
   primary: z.boolean().default(false),
-  sortBy: z.enum(['label', 'natural']).default('label'),
+  sortBy: z.enum(['label', 'natural', 'value']).default('label'),
   /** Display names for coded values, e.g. accessGrade. */
   labels: z.record(z.string(), z.string()).optional(),
   /** Fixed options for a toggle group. */

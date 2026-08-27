@@ -1118,6 +1118,33 @@ huntFinder:
       primary: true
       sortBy: label
 
+    # When someone can actually go is the first question of a trip, and it is
+    # the axis the whole reframe was built around. Matching is by month
+    # rather than an exact range: a hunt counts if its season touches the
+    # month at all, which is the question people ask out loud.
+    - id: month
+      label: When
+      field: months
+      multiValue: true
+      type: multiselect
+      icon: calendar
+      placeholder: Any month
+      primary: true
+      sortBy: value
+      labels:
+        "1": January
+        "2": February
+        "3": March
+        "4": April
+        "5": May
+        "6": June
+        "7": July
+        "8": August
+        "9": September
+        "10": October
+        "11": November
+        "12": December
+
     - id: unit
       label: Unit
       field: unitsReferenced

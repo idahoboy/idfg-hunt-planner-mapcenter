@@ -101,11 +101,16 @@ export function FacetControl({
 
   // ---- select / multiselect ----
   const isMulti = facet.type === 'multiselect';
+  const labelFor = (value: string): string =>
+    facet.labels?.[value] ??
+    facet.options?.find((o) => o.value === value)?.label ??
+    value;
+
   const summary =
     selected.length === 0
       ? facet.placeholder ?? `Any ${facet.label.toLowerCase()}`
       : selected.length === 1
-        ? selected[0]!
+        ? labelFor(selected[0]!)
         : `${selected.length} selected`;
 
   const optionList = (

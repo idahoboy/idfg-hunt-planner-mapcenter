@@ -38,8 +38,12 @@ export function FilterBar(): React.ReactElement | null {
     ...Object.entries(filters).flatMap(([facetId, values]) =>
       values.map((value) => {
         const facet = facets.find((f) => f.id === facetId);
+        // A coded value (month 10, accessGrade "rule") must show its label,
+        // not its code.
         const label =
-          facet?.options?.find((o) => o.value === value)?.label ?? value;
+          facet?.labels?.[value] ??
+          facet?.options?.find((o) => o.value === value)?.label ??
+          value;
         return { facetId, value, facetLabel: facet?.label ?? facetId, label };
       }),
     ),

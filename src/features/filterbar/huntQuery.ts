@@ -128,11 +128,12 @@ export function runHuntQuery(
       count,
     }));
 
-    list.sort((a, b) =>
-      facet.sortBy === 'natural'
-        ? naturalCompare(a.label, b.label)
-        : a.label.localeCompare(b.label),
-    );
+    list.sort((a, b) => {
+      if (facet.sortBy === 'natural') return naturalCompare(a.label, b.label);
+      // Months must sort 8, 9, 10 — by value, never by name.
+      if (facet.sortBy === 'value') return Number(a.value) - Number(b.value);
+      return a.label.localeCompare(b.label);
+    });
     options[facet.id] = list;
   }
 

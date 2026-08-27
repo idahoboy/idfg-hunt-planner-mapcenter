@@ -78,6 +78,40 @@ const RESTRICTIONS = [
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * The API returns dates as M/D/YY strings. Comparing those as text sorts
+ * 10/1/26 before 8/1/26, so they are normalised to ISO here — once, at build
+ * time — rather than parsed on every keystroke in the browser.
+ *
+ * Two-digit years are read as 2000+YY: this inventory is current-season data,
+ * and a hunt in 1926 is not a case worth handling.
+ */
+function toIso(mdy) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/.exec(String(mdy ?? '').trim());
+  if (!m) return null;
+  const [, mm, dd, yy] = m;
+  return `20${yy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+}
+
+/** Every calendar month a hunt is open in, as 1-12. A season that spans a
+ *  year end still yields the right set. */
+function monthsOpen(openIso, closeIso) {
+  if (!openIso || !closeIso) return [];
+  const start = new Date(`${openIso}T00:00:00Z`);
+  const end = new Date(`${closeIso}T00:00:00Z`);
+  if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf()) || end < start) return [];
+  const months = new Set();
+  const cursor = new Date(start);
+  cursor.setUTCDate(1);
+  while (cursor <= end) {
+    months.add(cursor.getUTCMonth() + 1);
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+  months.add(start.getUTCMonth() + 1);
+  months.add(end.getUTCMonth() + 1);
+  return [...months].sort((a, b) => a - b);
+}
+
+/**
  * Game Management Units are an authoritative geographic layer. A general
  * season hunt is NOT a unit — it is defined in the seasons brochure and
  * *references* one or more units in prose: "Unit 9", "Portion of Unit 50",
@@ -311,6 +345,11 @@ async function main() {
       ornament: row.ornament,
       open: row.open,
       close: row.close,
+      openIso: toIso(row.open),
+      closeIso: toIso(row.close),
+      // Precomputed so the month facet is a set membership test rather than
+      // date arithmetic per hunt per keystroke.
+      months: monthsOpen(toIso(row.open), toIso(row.close)),
       permits: row.permits === 999999 ? null : row.permits,
       unlimited: row.permits === 999999,
       area,

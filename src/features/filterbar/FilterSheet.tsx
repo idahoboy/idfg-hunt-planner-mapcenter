@@ -60,7 +60,10 @@ export function FilterSheet(): React.ReactElement | null {
           facetId,
           value,
           facetLabel: facet?.label ?? facetId,
-          label: facet?.options?.find((o) => o.value === value)?.label ?? value,
+          label:
+            facet?.labels?.[value] ??
+            facet?.options?.find((o) => o.value === value)?.label ??
+            value,
         };
       }),
     ),

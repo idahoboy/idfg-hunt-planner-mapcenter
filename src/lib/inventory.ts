@@ -19,6 +19,10 @@ export interface Hunt {
   ornament: string | null;
   open: string;
   close: string;
+  openIso: string | null;
+  closeIso: string | null;
+  /** Calendar months this hunt is open in, 1-12. */
+  months: number[];
   permits: number | null;
   unlimited: boolean;
   area: string;
