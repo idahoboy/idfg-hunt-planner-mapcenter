@@ -493,6 +493,91 @@ two meanings.
 
 ## Backlog
 
+### The filter axes are not parallel
+
+The hunt-type toggle currently offers *Game management units · Controlled
+hunts · Elk zones · Waterfowl areas · Access Yes! properties*. Those are three
+different kinds of thing wearing one coat:
+
+| Currently in one group | Actually is |
+|---|---|
+| Game management units, Elk zones | **geography** — where a hunt happens |
+| Controlled hunts | **hunt class** — how you get the tag |
+| Waterfowl areas | geography *and* species scope |
+| Access Yes! properties | **programme** — how you get on the ground |
+
+Asking someone to pick between "Controlled hunts" and "Game management units"
+is asking them to choose between a noun and a place. It is the same confusion
+as calling a GMU a general season hunt, one level up.
+
+**The axes that are genuinely parallel** — every one describes the hunt itself,
+and all five come straight from the API. Counts are from the current snapshot:
+
+| Axis | Values | Distribution |
+|---|---|---|
+| **Tag type** | what you buy | Regular Deer Tag 259 · White-tailed Deer Tag 203 · zone A/B tags |
+| **Species** | with the rollups the API already has (Big Game, Upland Bird, Waterfowl) | Mule and White-tailed Deer 360 · Elk 319 · White-tailed 312 · Pronghorn 59 |
+| **Season** | the labelled season | General Any Weapon 214 · General Archery 199 · Controlled Hunt Antlered 107 |
+| **Weapon** | `method` | Any Weapon 614 · Archery 300 · Muzzleloader 90 · Short-Range 47 |
+| **Sex / antler** | `ornament` | Antlered 398 · Antlerless or Antlered 324 · Antlerless 290 |
+
+Note what the counts say about ordering: **weapon looks discriminating and is
+not** — 614 of 1,052 hunts are "Any Weapon", so it filters little until someone
+picks Archery. **Sex/antler is the sharpest axis nobody currently exposes**, and
+it splits the inventory almost in thirds.
+
+Geography (unit, zone, region, county) becomes its own dimension — a *where*,
+not a hunt type. Programmes like Access Yes! move to the access dimension,
+where they already live in the click result.
+
+### Top filters versus side layers
+
+They overlap and sometimes contradict. Filtering species to Elk and switching
+on "Controlled Hunt Areas — Elk" express nearly the same intent through two
+controls that do not know about each other, and can disagree on screen.
+
+The distinction worth holding: **the top bar answers "what hunt am I looking
+for"; the left panel answers "what do I want to see."** They are different
+questions and both are legitimate.
+
+Proposed resolution, in order:
+
+1. **Label them as those two questions** rather than "Filters" and "Layers".
+2. **Let the query suggest layers.** Narrowing to elk offers the elk layers;
+   the panel stays available to override. Suggestion, not seizure — a map that
+   rearranges itself without being asked is worse than one that does nothing.
+3. **Never let them contradict silently.** If a filter implies a layer that is
+   switched off, say so in the results rail rather than showing an empty map.
+
+### Left-hand layout
+
+Three candidates, and the trade is between simultaneity and width:
+
+- **Stacked (current)** — one left panel, tool rail switches it. Cheapest, and
+  results and layers can never be seen together, which is exactly the moment
+  people want both.
+- **Double column** — rail + panel + results. Honest but expensive: on a
+  1280px laptop it leaves the map under half the width, and the map is the
+  product.
+- **Split one column** — results above, layers below, both resizable. Keeps a
+  single column, allows both at once, and degrades on a phone to the sheets
+  that already exist.
+
+The third is the one worth prototyping. It is also the only one that does not
+need a new mobile story.
+
+### Landing pages
+
+A map is a poor first screen for someone who has not decided anything yet. A
+task-shaped entry — *elk in October*, *somewhere to take a youth hunter*,
+*public access within an hour of home* — can set filters, layer visibility and
+zoom together, then hand off to the map already configured.
+
+This is the same idea as the trip profiles above, one step earlier: a profile
+configures the tool, a landing page configures the *task*. Both are config, and
+both reuse the same machinery. It also gives the birds and waterfowl audiences
+a sensible front door without pretending the big-game inventory covers them.
+
 ### Geometry delivery — measured, not guessed
 
 The question was whether to pre-generate static GeoJSON, stand up an endpoint,
