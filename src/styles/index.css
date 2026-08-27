@@ -266,7 +266,11 @@ body {
 .hp-option.is-active .hp-option__box {
   background: var(--hp-accent); border-color: var(--hp-accent);
 }
-.hp-option__label { font-size: 14px; }
+.hp-option__label { font-size: 14px; flex: 1; }
+.hp-option__count {
+  font-family: var(--hp-font-mono); font-variant-numeric: tabular-nums;
+  font-size: 11px; color: var(--hp-text-muted);
+}
 
 /* ============================ chips ============================ */
 .hp-chip {
@@ -393,27 +397,6 @@ body {
   font-size: 12px; line-height: 1.4;
 }
 
-.hp-card {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
-  width: 100%; padding: 11px 12px; text-align: left;
-  border: 1px solid var(--hp-border); border-radius: var(--hp-radius);
-  background: var(--hp-surface); font: inherit; color: inherit; cursor: pointer;
-  transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
-}
-.hp-card:hover, .hp-card.is-hovered {
-  border-color: var(--hp-accent); box-shadow: var(--hp-shadow); transform: translateY(-1px);
-}
-.hp-card.is-selected {
-  border-color: var(--hp-primary); border-width: 2px;
-  background: color-mix(in srgb, var(--hp-primary) 6%, transparent);
-}
-.hp-card__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.hp-card__title { font-weight: 700; font-size: 14.5px; }
-.hp-card__subtitle { font-size: 12.5px; color: var(--hp-text-muted); }
-.hp-card__source {
-  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--hp-text-muted); white-space: nowrap; flex-shrink: 0;
-}
 
 /* ============================ panels ============================ */
 .hp-panel { display: flex; flex-direction: column; gap: 14px; }
@@ -874,6 +857,104 @@ body {
 .hp-fatal h1 { font-size: 22px; margin: 0 0 10px; }
 .hp-fatal__hint { color: var(--hp-text-muted); font-size: 13px; }
 .hp-fatal code { background: var(--hp-surface-alt); padding: 2px 5px; border-radius: 4px; }
+
+/* ============================= result card ============================= */
+.hp-card {
+  border: 1px solid var(--hp-border);
+  border-radius: var(--hp-radius-sm);
+  background: var(--hp-surface);
+  overflow: hidden;
+}
+.hp-card.is-selected { border-color: var(--hp-accent-border); border-width: 2px; }
+.hp-card:hover { border-color: var(--hp-border-strong); }
+
+.hp-card__main {
+  display: block; width: 100%; text-align: left;
+  background: none; border: 0; padding: 10px 11px 8px;
+  font: inherit; color: var(--hp-text); cursor: pointer;
+}
+.hp-card__head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+}
+.hp-card__title { font-weight: 700; font-size: 13.5px; }
+
+.hp-card__facts {
+  margin: 8px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px;
+}
+.hp-card__facts dt {
+  font-size: 10px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--hp-text-muted);
+}
+.hp-card__facts dd {
+  margin: 0; font-size: 12.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hp-card__area {
+  display: block; margin-top: 8px; font-size: 12px; color: var(--hp-text-muted);
+}
+.hp-card__warn {
+  display: flex; gap: 5px; align-items: flex-start;
+  margin-top: 7px; font-size: 11.5px; line-height: 1.4; color: var(--hp-danger);
+}
+.hp-card__warn svg { flex: none; margin-top: 1px; }
+
+.hp-card__links {
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  padding: 7px 11px; border-top: 1px solid var(--hp-border);
+  background: var(--hp-surface-alt);
+}
+.hp-card__link {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: 0; padding: 0; font: inherit;
+  font-size: 12px; font-weight: 600; color: var(--hp-accent-ink);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+
+.hp-results__group-count {
+  font-family: var(--hp-font-mono); font-variant-numeric: tabular-nums;
+  font-size: 11px; font-weight: 500; color: var(--hp-text-muted);
+}
+
+/* ======================= stacked left column ======================= */
+.hp-leftstack {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* The rail sits inside the stack, so the column carries both widths. */
+  flex: 0 0 calc(var(--hp-toolrail-w) + var(--hp-rail-w));
+  max-width: calc(var(--hp-toolrail-w) + var(--hp-rail-w));
+  border-right: 1px solid var(--hp-border);
+  background: var(--hp-surface);
+}
+/* Results take whatever the tool panel is not using. */
+.hp-leftstack > .hp-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: auto;
+  border-right: 0;
+  border-bottom: 1px solid var(--hp-border);
+}
+/* The sidebar keeps its rail-beside-panel arrangement, but is capped so it
+   cannot swallow the results above it. */
+.hp-leftstack > .hp-sidebar {
+  flex: 0 0 auto;
+  min-height: 0;
+  max-height: 46vh;
+}
+.hp-leftstack .hp-toolpanel {
+  width: var(--hp-rail-w);
+  max-height: 46vh;
+  border-right: 0;
+}
+/* With nothing open the rail is a thin strip of icons at the foot of the
+   column rather than a full-height bar. */
+.hp-leftstack > .hp-sidebar.is-collapsed { max-height: none; }
+.hp-leftstack > .hp-sidebar.is-collapsed .hp-toolrail ul {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.hp-leftstack > .hp-sidebar.is-collapsed .hp-toolrail { width: 100%; border-right: 0; }
 
 /* =========================== responsive =========================== */
 @media (max-width: 1024px) {

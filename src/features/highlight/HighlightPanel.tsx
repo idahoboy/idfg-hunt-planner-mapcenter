@@ -28,7 +28,7 @@ export function HighlightPanel(): React.ReactElement {
   // One picker per hunt-area source that can produce a highlight.
   const pickers = useMemo(
     () =>
-      config.huntFinder.sources
+      config.highlight.pickLists
         .filter((s) => Boolean(s.kmlTemplate))
         .map((source) => ({ source })),
     [config],
@@ -224,7 +224,7 @@ function HighlightPicker({
   onChange: (ids: string[]) => void;
 }): React.ReactElement {
   const config = useConfig();
-  const source = config.huntFinder.sources.find((s) => s.id === sourceId)!;
+  const source = config.highlight.pickLists.find((s) => s.id === sourceId)!;
 
   const [options, setOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [loading, setLoading] = useState(false);
@@ -250,7 +250,7 @@ function HighlightPicker({
           const value = String(attrs[source.idField] ?? '');
           if (!value || seen.has(value)) continue;
           seen.add(value);
-          const label = source.titleTemplate.replace(/\{([A-Za-z0-9_]+)\}/g, (_m, k: string) =>
+          const label = (source.titleTemplate ?? '{NAME}').replace(/\{([A-Za-z0-9_]+)\}/g, (_m, k: string) =>
             String(attrs[k] ?? ''),
           ).replace(/\s+/g, ' ').trim();
           next.push({ value, label: label || value });

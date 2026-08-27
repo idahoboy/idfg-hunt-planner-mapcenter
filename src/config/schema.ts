@@ -108,63 +108,25 @@ const BasemapSchema = z.object({
 const FacetSchema = z.object({
   id: z.string(),
   label: z.string(),
-  type: z.enum(['multiselect', 'select', 'search', 'toggleGroup', 'extent']),
+  /** Field on a snapshot hunt. Arrays (unitsReferenced) match any element. */
+  field: z.string().optional(),
+  multiValue: z.boolean().default(false),
+  type: z.enum(['multiselect', 'select', 'search', 'toggleGroup']),
   icon: z.string().optional(),
   placeholder: z.string().optional(),
   primary: z.boolean().default(false),
-  source: z.enum(['live', 'static']).default('static'),
-  from: z.string().optional(),
-  field: z.string().optional(),
-  sortBy: z.enum(['label', 'natural', 'value', 'valueDesc']).default('label'),
-  applyAliases: z.boolean().default(false),
-  spatial: z.boolean().default(false),
-  appliesTo: z.array(z.string()).optional(),
-  searchFields: z.record(z.string(), z.array(z.string())).optional(),
-  lookup: z.object({ url: z.string(), field: z.string() }).optional(),
+  sortBy: z.enum(['label', 'natural']).default('label'),
+  /** Display names for coded values, e.g. accessGrade. */
+  labels: z.record(z.string(), z.string()).optional(),
+  /** Fixed options for a toggle group. */
   options: z
-    .array(
-      z.object({
-        value: z.string(),
-        label: z.string(),
-        sources: z.array(z.string()).optional(),
-      }),
-    )
+    .array(z.object({ value: z.string(), label: z.string() }))
     .optional(),
+  /** Snapshot fields a free-text search looks at. */
+  searchFields: z.array(z.string()).optional(),
 });
 
-const SourceSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  kind: z.enum(['controlled', 'unit', 'zone', 'waterfowl', 'access', 'distribution']),
-  url: z.string(),
-  idField: z.string(),
-  titleTemplate: z.string(),
-  subtitleTemplate: z.string().optional(),
-  outFields: z.array(z.string()).default(['*']),
-  orderBy: z.array(z.string()).optional(),
-  baseWhere: z.string().optional(),
-  /**
-   * Identity field(s) to collapse duplicate rows on. Some services store several
-   * rows per real-world feature; querying DISTINCT over these fields returns one
-   * card per area instead of one per stored row. Accepts a single field name or
-   * a list for a composite identity.
-   */
-  dedupeBy: z.union([z.string(), z.array(z.string())]).optional(),
-  speciesScope: z.array(z.string()).optional(),
-  kmlTemplate: z.string().optional(),
-  /** Shown above this source's results. Use for known data caveats. */
-  caveat: z.string().optional(),
-  /**
-   * How an expanded result card renders. Without one, the card falls back to
-   * listing whatever `outFields` returned, which for a source selecting "*"
-   * means raw database columns.
-   */
-  detail: PopupSchema.optional(),
-  /** Borrow the popup already written for this layer id, instead of repeating it. */
-  detailFromLayer: z.string().optional(),
-  speciesAliases: z.record(z.string(), z.string()).optional(),
-  facetFields: z.record(z.string(), z.union([z.string(), z.record(z.string(), z.string())])).optional(),
-});
+
 
 const ClickQuerySchema = z.object({
   enabled: z.boolean().default(true),
@@ -271,19 +233,36 @@ export const AppConfigSchema = z.object({
   layers: z.array(LayerSchema),
   huntFinder: z.object({
     enabled: z.boolean().default(true),
-    cacheTtlMinutes: z.number().default(60),
     pageSize: z.number().default(50),
+    inventory: z.object({ url: z.string() }),
     results: z.object({
       hoverHighlights: z.boolean().default(true),
       clickZooms: z.boolean().default(true),
       syncToExtent: z.boolean().default(true),
       syncDefault: z.boolean().default(false),
       emptyMessage: z.string().default('No results.'),
+      caveat: z.string().optional(),
     }),
-    sources: z.array(SourceSchema),
     facets: z.array(FacetSchema),
   }),
   highlight: z.object({
+    pickLists: z
+      .array(
+        z.object({
+          id: z.string(),
+          title: z.string(),
+          url: z.string(),
+          idField: z.string(),
+          labelField: z.string(),
+          sortBy: z.enum(['label', 'natural']).default('label'),
+          kmlTemplate: z.string().optional(),
+          baseWhere: z.string().optional(),
+          outFields: z.array(z.string()).default(['*']),
+          orderBy: z.array(z.string()).optional(),
+          titleTemplate: z.string().optional(),
+        }),
+      )
+      .default([]),
     symbol: z.object({ fill: Color, outline: Color, width: z.number().default(2) }),
     hatchedSymbol: z.object({ style: z.string(), color: Color, width: z.number() }).optional(),
     labelSymbol: z
@@ -320,6 +299,5 @@ export type AppConfig = z.infer<typeof AppConfigSchema>;
 export type LayerConfig = z.infer<typeof LayerSchema>;
 export type BasemapConfig = z.infer<typeof BasemapSchema>;
 export type FacetConfig = z.infer<typeof FacetSchema>;
-export type SourceConfig = z.infer<typeof SourceSchema>;
 export type PopupConfig = z.infer<typeof PopupSchema>;
 export type GroupConfig = AppConfig['groups'][number];

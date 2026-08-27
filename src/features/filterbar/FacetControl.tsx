@@ -1,13 +1,15 @@
 import { useId, useMemo, useState } from 'react';
 import type { AppConfig, FacetConfig } from '@/config/schema';
 import { useAppStore, EMPTY_VALUES } from '@/state/store';
-import { useFacetValues } from './useFacetValues';
+
+const EMPTY_OPTIONS: Array<{ value: string; label: string; count: number }> = [];
 import { Icon } from '@/components/Icon';
 import { Popover } from '@/components/Popover';
 
 interface FacetControlProps {
   facet: FacetConfig;
-  config: AppConfig;
+  /** Kept for call-site symmetry; options now come from the store. */
+  config?: AppConfig;
   /**
    * `pill` is the filter-bar form: a compact trigger that opens a popover.
    * `block` is the sheet form: a labelled, full-width control with its options
@@ -19,7 +21,6 @@ interface FacetControlProps {
 
 export function FacetControl({
   facet,
-  config,
   variant = 'pill',
 }: FacetControlProps): React.ReactElement {
   const triggerId = useId();
@@ -33,7 +34,11 @@ export function FacetControl({
   const keyword = useAppStore((s) => s.keyword);
   const setKeyword = useAppStore((s) => s.setKeyword);
 
-  const { options, loading, error } = useFacetValues(facet, config);
+  // Options come from the same in-memory query that produces the results, so
+  // each carries the count it would yield — and costs nothing to compute.
+  const options = useAppStore((s) => s.facetOptions[facet.id]) ?? EMPTY_OPTIONS;
+  const loading = false;
+  const error: string | null = null;
 
   const visibleOptions = useMemo(() => {
     if (!filterText.trim()) return options;

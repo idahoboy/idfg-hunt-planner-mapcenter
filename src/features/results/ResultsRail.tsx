@@ -1,86 +1,122 @@
 import { useMemo } from 'react';
 import { useConfig } from '@/config/ConfigContext';
 import { useAppStore, type ResultRecord } from '@/state/store';
+import { useMap } from '@/map/MapProvider';
 import { Icon } from '@/components/Icon';
 import { downloadCsv } from '@/lib/csv';
-import { useMediaQuery } from '@/lib/useMediaQuery';
-import { ResultDetail } from './ResultDetail';
+import { zoomToBbox } from '@/lib/zoomTo';
 import { StartPanel } from './StartPanel';
 
-function ResultCard({ record }: { record: ResultRecord }): React.ReactElement {
-  const config = useConfig();
-  const hoveredKey = useAppStore((s) => s.hoveredResultKey);
-  const selectedKey = useAppStore((s) => s.selectedResultKey);
-  const setHovered = useAppStore((s) => s.setHoveredResultKey);
-  const setSelected = useAppStore((s) => s.setSelectedResultKey);
-  const setMobileView = useAppStore((s) => s.setMobileView);
-  const expandedKey = useAppStore((s) => s.expandedResultKey);
-  const setExpanded = useAppStore((s) => s.setExpandedResultKey);
-  const isMobile = useMediaQuery(
-    `(max-width: ${config.ui.layout['mobileBreakpoint'] ?? 768}px)`,
-  );
+const GRADE_LABEL: Record<string, string> = {
+  open: 'Open access',
+  limited: 'Limited access',
+  permission: 'Permission required',
+  rule: 'Special rule',
+};
 
-  const isHovered = hoveredKey === record.key;
+function ResultCard({
+  record,
+  huntUrl,
+  tagUrl,
+}: {
+  record: ResultRecord;
+  huntUrl?: string;
+  tagUrl?: string;
+}): React.ReactElement {
+  const selectedKey = useAppStore((s) => s.selectedResultKey);
+  const setSelected = useAppStore((s) => s.setSelectedResultKey);
+  const setHovered = useAppStore((s) => s.setHoveredResultKey);
+  const { view } = useMap();
+
   const isSelected = selectedKey === record.key;
-  const isExpanded = isMobile && expandedKey === record.key;
 
   return (
     <li>
-      <button
-        type="button"
-        className={`hp-card${isSelected ? ' is-selected' : ''}${isHovered ? ' is-hovered' : ''}`}
-        onMouseEnter={() => setHovered(record.key)}
-        onMouseLeave={() => setHovered(null)}
-        onFocus={() => setHovered(record.key)}
-        onBlur={() => setHovered(null)}
-        onClick={() => {
-          // Desktop shows list and map side by side, so a tap can just select
-          // and fly there. On a phone the list covers the map, so a tap opens
-          // the detail in place and the detail carries the map action —
-          // otherwise the zoom happens somewhere the user cannot see.
-          if (isMobile) {
-            setExpanded(isExpanded ? null : record.key);
-            return;
-          }
-          setSelected(isSelected ? null : record.key);
-        }}
-        aria-pressed={isMobile ? isExpanded : isSelected}
-        aria-expanded={isMobile ? isExpanded : undefined}
-      >
-        <span className="hp-card__body">
-          <span className="hp-card__title">{record.title}</span>
-          <span className="hp-card__subtitle">{record.subtitle}</span>
-        </span>
-        <span className="hp-card__source">{record.sourceTitle}</span>
-        {isMobile ? (
-          <Icon
-            name={isExpanded ? 'chevronDown' : 'chevronRight'}
-            size={16}
-            className="hp-card__caret"
-          />
-        ) : null}
-      </button>
+      <div className={`hp-card${isSelected ? ' is-selected' : ''}`}>
+        <button
+          type="button"
+          className="hp-card__main"
+          onMouseEnter={() => setHovered(record.key)}
+          onMouseLeave={() => setHovered(null)}
+          onFocus={() => setHovered(record.key)}
+          onBlur={() => setHovered(null)}
+          onClick={() => setSelected(isSelected ? null : record.key)}
+          aria-pressed={isSelected}
+        >
+          <span className="hp-card__head">
+            <span className="hp-card__title">{record.title}</span>
+            <span className={`hp-grade hp-grade--${record.accessGrade}`}>
+              {GRADE_LABEL[record.accessGrade] ?? record.accessGrade}
+            </span>
+          </span>
 
-      {isExpanded ? (
-        <div className="hp-card__detail">
-          <ResultDetail
-            record={record}
-            source={config.huntFinder.sources.find((s) => s.id === record.sourceId)}
-            config={config}
-          />
-          <button
-            type="button"
-            className="hp-btn hp-btn--primary hp-card__mapbtn"
-            onClick={() => {
-              setSelected(record.key);
-              setMobileView('map');
-            }}
-          >
-            <Icon name="map" size={16} />
-            Show on map
-          </button>
+          <dl className="hp-card__facts">
+            <div>
+              <dt>Dates</dt>
+              <dd>
+                {record.open} – {record.close}
+              </dd>
+            </div>
+            <div>
+              <dt>Weapon</dt>
+              <dd>{record.method}</dd>
+            </div>
+            {record.ornament ? (
+              <div>
+                <dt>Sex / antler</dt>
+                <dd>{record.ornament}</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>Tags</dt>
+              <dd>{record.unlimited ? 'Unlimited' : (record.permits?.toLocaleString() ?? '—')}</dd>
+            </div>
+          </dl>
+
+          <span className="hp-card__area">{record.area}</span>
+
+          {/* The drawn boundary is wider than where this hunt is legal. */}
+          {record.areaQualified ? (
+            <span className="hp-card__warn">
+              <Icon name="alert" size={12} />
+              Covers only part of the area shown — the hunt text governs.
+            </span>
+          ) : null}
+        </button>
+
+        <div className="hp-card__links">
+          {record.bbox && view ? (
+            <button
+              type="button"
+              className="hp-card__link"
+              onClick={() => void zoomToBbox(view, record.bbox!)}
+            >
+              <Icon name="crosshair" size={13} />
+              Zoom to
+            </button>
+          ) : null}
+          {huntUrl ? (
+            <a
+              className="hp-card__link"
+              href={huntUrl.replace('{id}', String(record.huntId))}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              This hunt
+            </a>
+          ) : null}
+          {tagUrl ? (
+            <a
+              className="hp-card__link"
+              href={tagUrl.replace('{tagId}', String(record.tagId))}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              This tag
+            </a>
+          ) : null}
         </div>
-      ) : null}
+      </div>
     </li>
   );
 }
@@ -91,53 +127,51 @@ export function ResultsRail(): React.ReactElement | null {
   const resultCount = useAppStore((s) => s.resultCount);
   const loading = useAppStore((s) => s.resultsLoading);
   const error = useAppStore((s) => s.resultsError);
-  const clearAllFilters = useAppStore((s) => s.clearAllFilters);
   const filters = useAppStore((s) => s.filters);
   const keyword = useAppStore((s) => s.keyword);
   const browseAll = useAppStore((s) => s.browseAll);
   const setBrowseAll = useAppStore((s) => s.setBrowseAll);
   const toggleFilterValue = useAppStore((s) => s.toggleFilterValue);
+  const clearAllFilters = useAppStore((s) => s.clearAllFilters);
   const loadMore = useAppStore((s) => s.loadMore);
-  const resultLimit = useAppStore((s) => s.resultLimit);
 
   const hasCriteria =
     Object.values(filters).some((v) => v.length > 0) || keyword.trim().length > 0;
 
+  // Grouped by species: the axis people think in, and the one that makes a
+  // long list scannable.
   const grouped = useMemo(() => {
     const map = new Map<string, ResultRecord[]>();
-    for (const record of results) {
-      map.set(record.sourceId, [...(map.get(record.sourceId) ?? []), record]);
+    for (const r of results) {
+      const list = map.get(r.species);
+      if (list) list.push(r);
+      else map.set(r.species, [r]);
     }
-    return [...map.entries()];
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [results]);
 
   if (!config.huntFinder.enabled) return null;
 
+  const huntUrl = config.clickQuery.huntDetailUrl;
+  const tagUrl = config.clickQuery.tagDetailUrl;
+
   return (
-    <aside className="hp-results" aria-label="Hunt area results">
+    <aside className="hp-results" aria-label="Hunt results">
       <header className="hp-results__header">
         <h2 className="hp-results__heading">
-          {loading ? 'Searching…' : `${resultCount.toLocaleString()} hunt areas`}
+          {loading ? 'Loading…' : `${resultCount.toLocaleString()} hunts`}
         </h2>
         {results.length > 0 ? (
           <button
             type="button"
             className="hp-btn hp-btn--ghost hp-btn--sm"
-            onClick={() => downloadCsv(results, 'idfg-hunt-areas.csv')}
+            onClick={() => downloadCsv(results, 'idfg-hunts.csv')}
           >
             <Icon name="table" size={14} />
             CSV
           </button>
         ) : null}
       </header>
-
-      {hasCriteria || browseAll ? (
-        resultCount > results.length && results.length > 0 ? (
-          <p className="hp-results__note">
-            Showing {results.length.toLocaleString()} of {resultCount.toLocaleString()}.
-          </p>
-        ) : null
-      ) : null}
 
       {error ? (
         <div className="hp-alert hp-alert--error" role="alert">
@@ -146,7 +180,7 @@ export function ResultsRail(): React.ReactElement | null {
         </div>
       ) : null}
 
-      {!hasCriteria && !browseAll ? (
+      {!hasCriteria && !browseAll && !error ? (
         <StartPanel
           total={resultCount}
           loading={loading}
@@ -166,41 +200,38 @@ export function ResultsRail(): React.ReactElement | null {
       ) : null}
 
       <div className="hp-results__scroll">
-        {grouped.map(([sourceId, records]) => {
-          const source = config.huntFinder.sources.find((s) => s.id === sourceId);
-          return (
-            <section key={sourceId} className="hp-results__group">
-              <h3 className="hp-results__group-title">{source?.title ?? sourceId}</h3>
-              {source?.caveat ? (
-                <p className="hp-results__caveat">
-                  <Icon name="alert" size={13} />
-                  <span>{source.caveat}</span>
-                </p>
-              ) : null}
-              <ul className="hp-results__list">
-                {records.map((record) => (
-                  <ResultCard key={record.key} record={record} />
-                ))}
-              </ul>
-            </section>
-          );
-        })}
+        {results.length > 0 && config.huntFinder.results.caveat ? (
+          <p className="hp-results__caveat">
+            <Icon name="alert" size={13} />
+            <span>{config.huntFinder.results.caveat}</span>
+          </p>
+        ) : null}
 
-        {(hasCriteria || browseAll) && results.length > 0 && resultCount > results.length ? (
+        {grouped.map(([species, records]) => (
+          <section key={species} className="hp-results__group">
+            <h3 className="hp-results__group-title">
+              {species} <span className="hp-results__group-count">{records.length}</span>
+            </h3>
+            <ul className="hp-results__list">
+              {records.map((r) => (
+                <ResultCard
+                  key={r.key}
+                  record={r}
+                  {...(huntUrl ? { huntUrl } : {})}
+                  {...(tagUrl ? { tagUrl } : {})}
+                />
+              ))}
+            </ul>
+          </section>
+        ))}
+
+        {results.length > 0 && resultCount > results.length ? (
           <div className="hp-results__more">
-            <button
-              type="button"
-              className="hp-btn hp-btn--ghost"
-              onClick={loadMore}
-              disabled={loading}
-            >
-              {loading
-                ? 'Loading…'
-                : `Load ${Math.min(50, resultCount - results.length).toLocaleString()} more`}
+            <button type="button" className="hp-btn hp-btn--ghost" onClick={loadMore}>
+              Load {Math.min(50, resultCount - results.length).toLocaleString()} more
             </button>
             <span className="hp-results__more-note">
               {results.length.toLocaleString()} of {resultCount.toLocaleString()} shown
-              {resultLimit >= 200 ? ' — narrowing the filters will be quicker than paging' : ''}
             </span>
           </div>
         ) : null}

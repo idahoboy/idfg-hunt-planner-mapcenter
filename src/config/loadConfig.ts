@@ -111,12 +111,6 @@ export async function loadConfig(url: string = CONFIG_URL): Promise<LoadedConfig
       `[config] basemaps.default "${config.basemaps.default}" is not in basemaps.items; using the first entry`,
     );
   }
-  const sourceIds = new Set(config.huntFinder.sources.map((s) => s.id));
-  for (const facet of config.huntFinder.facets) {
-    if (facet.source === 'live' && facet.from && !sourceIds.has(facet.from) && !facet.lookup) {
-      console.warn(`[config] facet "${facet.id}" reads from unknown source "${facet.from}"`);
-    }
-  }
 
   return { config, rejectedLayers, disabledLayers };
 }

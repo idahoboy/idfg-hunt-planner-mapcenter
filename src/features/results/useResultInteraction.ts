@@ -1,148 +1,144 @@
 import { useEffect } from 'react';
 import Graphic from '@arcgis/core/Graphic';
 import { useConfig } from '@/config/ConfigContext';
-import { useAppStore } from '@/state/store';
+import { useAppStore, type ResultRecord } from '@/state/store';
 import { useMap } from '@/map/MapProvider';
-import { queryFeatures, sqlIdIn, sqlLiteral } from '@/lib/arcgisQuery';
-import type { SourceConfig } from '@/config/schema';
+import { queryFeatures, sqlInClause, sqlNumericIn } from '@/lib/arcgisQuery';
 import { buildSymbol } from '@/map/symbols';
-import { zoomToGeometry } from '@/lib/zoomTo';
+import { zoomToBbox } from '@/lib/zoomTo';
 
-const geometryCache = new Map<string, __esri.GeometryUnion | null>();
+const geometryCache = new Map<string, __esri.GeometryUnion[]>();
 
 /**
- * Rebuilds the WHERE for one result. A deduped source has a composite identity
- * (e.g. BigGame + HuntArea) rather than a single id column, and the record's
- * `id` carries those values joined by U+001F.
+ * Fetches the geometry behind a result.
+ *
+ * A controlled hunt resolves through its AreaIDs; a general hunt references
+ * GMUs by name and is drawn as those units. Both are looked up only when a
+ * card is hovered or selected — the list itself needs no geometry at all,
+ * which is what keeps it instant.
  */
-function whereForRecord(source: SourceConfig, record: { id: string }): string {
-  const dedupe = source.dedupeBy
-    ? Array.isArray(source.dedupeBy) ? source.dedupeBy : [source.dedupeBy]
-    : [];
-  if (dedupe.length === 0) return sqlIdIn(source.idField, [record.id]);
-
-  const values = record.id.split('\u001f');
-  return dedupe
-    .map((field, i) => {
-      const value = values[i] ?? '';
-      return Number.isFinite(Number(value)) && value !== ''
-        ? `${field} = ${Number(value)}`
-        : `${field} = ${sqlLiteral(value)}`;
-    })
-    .join(' AND ');
-}
-
 async function fetchGeometry(
-  source: SourceConfig,
-  record: { id: string },
-): Promise<__esri.GeometryUnion | null> {
-  const where = whereForRecord(source, record);
-  const cacheKey = `${source.url}|${where}`;
-  if (geometryCache.has(cacheKey)) return geometryCache.get(cacheKey) ?? null;
+  record: ResultRecord,
+  urls: { huntAreas: string; units: string },
+): Promise<__esri.GeometryUnion[]> {
+  const cacheKey = record.key;
+  const hit = geometryCache.get(cacheKey);
+  if (hit) return hit;
 
-  const featureSet = await queryFeatures({
-    url: source.url,
-    where,
-    outFields: [source.idField],
-    returnGeometry: true,
-  });
-  const geometry = featureSet.features[0]?.geometry ?? null;
-  geometryCache.set(cacheKey, geometry);
-  return geometry;
+  let geometries: __esri.GeometryUnion[] = [];
+  try {
+    if (record.areaIds?.length) {
+      const fs = await queryFeatures({
+        url: urls.huntAreas,
+        where: sqlNumericIn('AreaID', record.areaIds),
+        outFields: ['AreaID'],
+        returnGeometry: true,
+      });
+      geometries = fs.features
+        .map((f) => f.geometry)
+        .filter((g): g is __esri.GeometryUnion => Boolean(g));
+    } else if (record.unitsReferenced.length) {
+      const fs = await queryFeatures({
+        url: urls.units,
+        where: sqlInClause('NAME', record.unitsReferenced),
+        outFields: ['NAME'],
+        returnGeometry: true,
+      });
+      geometries = fs.features
+        .map((f) => f.geometry)
+        .filter((g): g is __esri.GeometryUnion => Boolean(g));
+    }
+  } catch {
+    geometries = [];
+  }
+
+  geometryCache.set(cacheKey, geometries);
+  return geometries;
 }
 
-/**
- * Hover a result card -> flash the geometry on the map.
- * Click a result card -> zoom to it and keep it highlighted.
- * This is the interaction the legacy app had no equivalent for; it only ever
- * drew a static purple polygon after pressing a Highlight button.
- */
 export function useResultInteraction(): void {
   const config = useConfig();
   const { hoverLayer, highlightLayer, view, ready } = useMap();
-
   const results = useAppStore((s) => s.results);
   const hoveredKey = useAppStore((s) => s.hoveredResultKey);
   const selectedKey = useAppStore((s) => s.selectedResultKey);
 
-  // ---- hover flash ----
+  const urls = {
+    huntAreas: config.highlight.queryLayers['5']?.url ?? '',
+    units: config.highlight.queryLayers['3']?.url ?? '',
+  };
+
+  // ---- hover: a light flash, no zoom ------------------------------------
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !config.huntFinder.results.hoverHighlights) return;
     hoverLayer.removeAll();
     if (!hoveredKey) return;
 
     const record = results.find((r) => r.key === hoveredKey);
-    const source = config.huntFinder.sources.find((s) => s.id === record?.sourceId);
-    if (!record || !source) return;
+    if (!record) return;
 
     let cancelled = false;
     void (async () => {
-      try {
-        const geometry = await fetchGeometry(source, record);
-        if (cancelled || !geometry) return;
+      const geometries = await fetchGeometry(record, urls);
+      if (cancelled) return;
+      hoverLayer.removeAll();
+      for (const geometry of geometries) {
         hoverLayer.add(
           new Graphic({
             geometry,
             symbol: buildSymbol({
-              type: geometry.type === 'polyline' ? 'line' : 'fill',
-              color: 'rgba(255, 114, 0, 0.22)',
-              width: 3,
-              outline: { color: '#ff7200', width: 2.5 },
+              type: 'fill',
+              color: 'rgba(154, 32, 219, 0.10)',
+              outline: { color: '#9a20db', width: 1.5 },
             }),
           }),
         );
-      } catch {
-        /* hover preview is best-effort */
       }
     })();
 
-    return () => { cancelled = true; hoverLayer.removeAll(); };
-  }, [hoveredKey, results, config, hoverLayer, ready]);
+    return () => {
+      cancelled = true;
+      hoverLayer.removeAll();
+    };
+  }, [hoveredKey, results, config, hoverLayer, ready, urls]);
 
-  // ---- selection: highlight + zoom ----
+  // ---- selection: draw it and frame it ----------------------------------
   useEffect(() => {
     if (!ready || !view) return;
+    highlightLayer.removeAll();
     if (!selectedKey) return;
 
     const record = results.find((r) => r.key === selectedKey);
-    const source = config.huntFinder.sources.find((s) => s.id === record?.sourceId);
-    if (!record || !source) return;
+    if (!record) return;
 
     let cancelled = false;
     void (async () => {
-      try {
-        const geometry = await fetchGeometry(source, record);
-        if (cancelled || !geometry) return;
+      // The box is already in the snapshot, so the view can move before any
+      // geometry arrives.
+      if (record.bbox && config.huntFinder.results.clickZooms) {
+        await zoomToBbox(view, record.bbox, { duration: 550 });
+      }
 
-        highlightLayer.removeAll();
+      const geometries = await fetchGeometry(record, urls);
+      if (cancelled) return;
+      highlightLayer.removeAll();
+      for (const geometry of geometries) {
         highlightLayer.add(
           new Graphic({
             geometry,
             symbol: buildSymbol({
-              type: geometry.type === 'polyline' ? 'line' : 'fill',
+              type: 'fill',
               color: config.highlight.symbol.fill,
-              width: config.highlight.symbol.width,
               outline: {
                 color: config.highlight.symbol.outline,
                 width: config.highlight.symbol.width,
               },
             }),
-            attributes: record.attributes,
-            popupTemplate: {
-              title: record.title,
-              content: record.subtitle,
-            } as unknown as __esri.PopupTemplate,
           }),
         );
-
-        if (config.huntFinder.results.clickZooms) {
-          await zoomToGeometry(view, geometry, { duration: 550 });
-        }
-      } catch {
-        /* selection zoom is best-effort */
       }
     })();
 
     return () => { cancelled = true; };
-  }, [selectedKey, results, config, highlightLayer, view, ready]);
+  }, [selectedKey, results, config, highlightLayer, view, ready, urls]);
 }

@@ -73,8 +73,18 @@ export function App(): React.ReactElement {
         {config.huntFinder.enabled ? <FilterBar /> : null}
 
         <div className="hp-body">
-          <Sidebar />
-          {showFinder ? <ResultsRail /> : null}
+          {/*
+           * Results and layers stack in one column rather than competing for
+           * two. A double column leaves the map under half the width on a
+           * 1280px laptop, and the map is the product; a single switching
+           * panel hides one exactly when someone wants both. Stacking keeps
+           * both visible and needs no separate mobile story — the sheets
+           * already handle small screens.
+           */}
+          <div className="hp-leftstack">
+            {showFinder ? <ResultsRail /> : null}
+            <Sidebar />
+          </div>
 
           <main className="hp-mapwrap">
             <MapCanvas />

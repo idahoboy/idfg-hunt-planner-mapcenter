@@ -5,15 +5,27 @@ export type ToolId =
   | 'layers' | 'basemap' | 'highlight' | 'huntFinder' | 'upload'
   | 'search' | 'measure' | 'draw' | 'print' | 'share' | 'health' | null;
 
+/** A hunt from the snapshot, as the results rail renders it. */
 export interface ResultRecord {
-  /** `${sourceId}:${id}` — unique across sources. */
   key: string;
-  sourceId: string;
-  sourceTitle: string;
-  id: string;
+  huntId: number;
+  tagId: number;
   title: string;
   subtitle: string;
-  attributes: Record<string, unknown>;
+  species: string;
+  type: 'general' | 'controlled';
+  open: string;
+  close: string;
+  method: string;
+  ornament: string | null;
+  permits: number | null;
+  unlimited: boolean;
+  area: string;
+  areaQualified: boolean;
+  accessGrade: string;
+  bbox?: [number, number, number, number];
+  areaIds: number[] | null;
+  unitsReferenced: string[];
 }
 
 export interface ServiceHealth {
@@ -90,6 +102,10 @@ interface AppState {
   browseAll: boolean;
   setBrowseAll: (browse: boolean) => void;
 
+  /** Facet options with counts, recomputed on every query. */
+  facetOptions: Record<string, Array<{ value: string; label: string; count: number }>>;
+  setFacetOptions: (o: Record<string, Array<{ value: string; label: string; count: number }>>) => void;
+
   results: ResultRecord[];
   resultCount: number;
   resultsLoading: boolean;
@@ -150,9 +166,10 @@ export const EMPTY_VALUES: readonly string[] = Object.freeze([]);
 export const useAppStore = create<AppState>((set) => ({
   activeTool: 'layers',
   setActiveTool: (activeTool) => set({ activeTool }),
-  // On a phone a tool panel covers the whole screen, so opening one before the
-  // user asks would bury the map on first paint. Desktop has room for both.
-  sidebarOpen: typeof window === 'undefined' ? true : window.innerWidth > 768,
+  // Results and tools now share one column, so opening a tool panel before it
+  // is asked for squeezes the results it sits under. On a phone it would bury
+  // the map outright. Closed either way; the rail is one click.
+  sidebarOpen: false,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
 
   mobileView: 'map',
@@ -205,6 +222,9 @@ export const useAppStore = create<AppState>((set) => ({
   loadMore: () => set((s) => ({ resultLimit: s.resultLimit + 50 })),
   browseAll: false,
   setBrowseAll: (browseAll) => set({ browseAll }),
+
+  facetOptions: {},
+  setFacetOptions: (facetOptions) => set({ facetOptions }),
 
   results: [],
   resultCount: 0,
