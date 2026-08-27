@@ -1,1 +1,0 @@
-import{r as a,o as c}from"./operatorUnion-B0j9tnL6.js";import{h5 as s,h6 as o,hp as p,h7 as u}from"./index-Bewu-YIm.js";function m(t,r){const e=s(t),n=e.getSpatialReference();return o(a(e.getGeometry(),p(r),n),n)}function h(t){const[r,e]=u(t);return o(c(r,e),e)}export{m as execute,h as executeMany};

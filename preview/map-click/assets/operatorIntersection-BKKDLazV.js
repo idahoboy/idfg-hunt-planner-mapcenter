@@ -1,1 +1,0 @@
-import{gA as s,az as u}from"./index-Bewu-YIm.js";const r=new s;function f(n,e){return r.accelerateGeometry(n,e,1)}function i(n,e,t){return r.execute(n,e,t,null)}function l(n,e,t,o){const c=r.executeMany(new u(n),new u([e]),t,null,o);return Array.from(c)}function m(){return r.supportsCurves()}export{i as o,m as s,f as t,l as u};
