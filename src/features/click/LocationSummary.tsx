@@ -58,10 +58,15 @@ export function LocationSummary(): React.ReactElement | null {
             {/* An access agreement is the more useful and more accurate fact,
                 so it displaces the raw ownership chip rather than sitting
                 beside it and contradicting it. */}
-            {result.agreements.length > 0 ? (
+            {result.access.some((a) => a.onSite) ? (
               <span className="hp-locsum__fact hp-locsum__fact--ok">
                 <Icon name="check" size={13} />
-                {result.agreements[0]!.label}
+                {result.access.find((a) => a.onSite)!.label}
+              </span>
+            ) : result.access.length > 0 ? (
+              <span className="hp-locsum__fact hp-locsum__fact--ok">
+                <Icon name="check" size={13} />
+                Access {result.access[0]!.miles.toFixed(1)} mi
               </span>
             ) : result.ownership ? (
               <span
@@ -79,6 +84,10 @@ export function LocationSummary(): React.ReactElement | null {
               {result.hiddenByFilters > 0 ? ` (+${result.hiddenByFilters} filtered)` : ''}
             </span>
           </div>
+
+          {result.accessCaveat ? (
+            <p className="hp-locsum__caveat">Access data is a guide, not a guarantee.</p>
+          ) : null}
 
           {worstWarning ? (
             <p className="hp-locsum__warn">

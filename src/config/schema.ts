@@ -194,18 +194,23 @@ const ClickQuerySchema = z.object({
       caveat: z.string().optional(),
     })
     .optional(),
-  agreements: z
-    .array(
-      z.object({
-        id: z.string(),
-        label: z.string(),
-        url: z.string(),
-        fields: z.array(z.string()),
-        nameField: z.string(),
-        notifyField: z.string().optional(),
-      }),
-    )
-    .default([]),
+  access: z
+    .object({
+      caveat: z.string(),
+      proximityMeters: z.number().default(8000),
+      sources: z.array(
+        z.object({
+          id: z.string(),
+          label: z.string(),
+          url: z.string(),
+          where: z.string().optional(),
+          fields: z.array(z.string()),
+          nameField: z.string(),
+          notifyField: z.string().optional(),
+        }),
+      ),
+    })
+    .optional(),
   inventory: z.object({
     url: z.string(),
     matchGeneralByUnit: z.boolean().default(true),

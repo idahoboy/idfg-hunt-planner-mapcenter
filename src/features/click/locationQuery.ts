@@ -37,14 +37,13 @@ export interface LocationResult {
     source?: string;
     caveat?: string;
   } | null;
-  /** Access agreements covering this point — these override a bare ownership read. */
-  agreements: Array<{
-    id: string;
-    label: string;
-    name: string;
-    notifyRequired: boolean;
-    attributes: Record<string, unknown>;
-  }>;
+  /**
+   * Public-access opportunities at, or near, this point. These override a bare
+   * ownership read — an Access Yes! property is private land with access
+   * already secured.
+   */
+  access: AccessHit[];
+  accessCaveat: string | null;
   hunts: HuntMatch[];
   /** Hunts hidden because the user's own filters exclude them. */
   hiddenByFilters: number;
@@ -52,6 +51,17 @@ export interface LocationResult {
   /** Raw hits from whatever operational layers are switched on. */
   layerHits: Array<{ layerId: string; title: string; count: number; sample: string }>;
   inventoryMissing: boolean;
+}
+
+export interface AccessHit {
+  id: string;
+  label: string;
+  name: string;
+  /** Straight-line miles to the nearest edge; 0 when the point is inside. */
+  miles: number;
+  onSite: boolean;
+  notifyRequired: boolean;
+  attributes: Record<string, unknown>;
 }
 
 type ContextCfg = {
@@ -97,6 +107,96 @@ async function pointQuery(
     // One unreachable context layer must not take the whole answer down.
     return [];
   }
+}
+
+const EARTH_MILES = 3958.7613;
+
+/** Great-circle miles. Web Mercator planar distance would overstate by ~1.4x
+ *  at Idaho's latitude, which matters when the answer is "quarter of a mile". */
+function haversineMiles(aLon: number, aLat: number, bLon: number, bLat: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLon = toRad(bLon - aLon);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * EARTH_MILES * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/**
+ * Queries every access source at once, at the point and within the proximity
+ * radius, and measures how far each actually is.
+ */
+async function queryAccess(
+  cfg: NonNullable<AppConfig['clickQuery']['access']>,
+  point: Point,
+): Promise<AccessHit[]> {
+  const { nearestCoordinate } = await import('@arcgis/core/geometry/geometryEngine');
+
+  const perSource = await Promise.all(
+    cfg.sources.map(async (src) => {
+      try {
+        const fs = await queryFeatures({
+          url: src.url,
+          where: src.where ?? '1=1',
+          outFields: src.fields,
+          geometry: point,
+          returnGeometry: true,
+          distance: cfg.proximityMeters,
+          units: 'meters',
+          num: 12,
+        });
+
+        return fs.features.map((f) => {
+          const attrs = (f.attributes ?? {}) as Record<string, unknown>;
+          let miles = 0;
+          try {
+            const near = f.geometry ? nearestCoordinate(f.geometry, point) : null;
+            const c = near?.coordinate;
+            if (c) {
+              miles = haversineMiles(
+                point.longitude ?? 0,
+                point.latitude ?? 0,
+                c.longitude ?? 0,
+                c.latitude ?? 0,
+              );
+            }
+          } catch {
+            // Geometry that will not measure still counts as a hit nearby.
+          }
+          return {
+            id: src.id,
+            label: src.label,
+            name: String(attrs[src.nameField] ?? '').trim() || src.label,
+            miles,
+            onSite: miles < 0.02,
+            notifyRequired: src.notifyField
+              ? ['y', 'yes', '1', 'true'].includes(
+                  String(attrs[src.notifyField] ?? '').toLowerCase(),
+                )
+              : false,
+            attributes: attrs,
+          } satisfies AccessHit;
+        });
+      } catch {
+        return [] as AccessHit[];
+      }
+    }),
+  );
+
+  // Closest first, and de-duplicated: the same property can appear in two
+  // programmes, and listing it twice reads like two opportunities.
+  const seen = new Set<string>();
+  return perSource
+    .flat()
+    .sort((a, b) => a.miles - b.miles)
+    .filter((h) => {
+      const key = `${h.label}${h.name}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 12);
 }
 
 /**
@@ -150,16 +250,14 @@ export async function queryLocation(
   const lonlat = { lon: mapPoint.longitude ?? 0, lat: mapPoint.latitude ?? 0 };
 
   const contexts = cfg.context as ContextCfg[];
-  const [contextResults, ownershipRows, agreementResults, indexed] = await Promise.all([
+  const [contextResults, ownershipRows, access, indexed] = await Promise.all([
     Promise.all(contexts.map((c) => pointQuery(c.url, mapPoint, c.fields, distance))),
     granularity === 'local' && cfg.ownership
       ? pointQuery(cfg.ownership.url, mapPoint, cfg.ownership.fields, distance)
       : Promise.resolve([]),
-    // Agreements are cheap and matter at any zoom — an Access Yes! property is
-    // often exactly what someone is hunting for.
-    Promise.all(
-      (cfg.agreements ?? []).map((a) => pointQuery(a.url, mapPoint, a.fields, distance)),
-    ),
+    // Access matters at any zoom, and nearby counts: walk-in access a quarter
+    // mile away is often more useful than anything true of this exact pixel.
+    cfg.access ? queryAccess(cfg.access, mapPoint) : Promise.resolve([]),
     loadInventory(appUrl(cfg.inventory.url)),
   ]);
 
@@ -200,21 +298,7 @@ export async function queryLocation(
     };
   }
 
-  // ---- access agreements ------------------------------------------------
-  const agreements: LocationResult['agreements'] = [];
-  (cfg.agreements ?? []).forEach((a, i) => {
-    for (const row of agreementResults[i] ?? []) {
-      agreements.push({
-        id: a.id,
-        label: a.label,
-        name: String(row[a.nameField] ?? '').trim() || a.label,
-        notifyRequired: a.notifyField
-          ? ['y', 'yes', '1', 'true'].includes(String(row[a.notifyField] ?? '').toLowerCase())
-          : false,
-        attributes: row,
-      });
-    }
-  });
+
 
   // ---- what can I hunt --------------------------------------------------
   const matches = new Map<number, HuntMatch>();
@@ -265,13 +349,12 @@ export async function queryLocation(
       'A hunt area here has more than one boundary on file and the current one is unconfirmed.',
     );
   }
-  if (agreements.length > 0) {
-    // Say the useful thing, not the alarming one: this is private ground that
-    // IDFG has already secured access on.
-    const names = agreements.map((a) => `${a.label} — ${a.name}`).join('; ');
+  const onSite = access.filter((a) => a.onSite);
+  if (onSite.length > 0) {
+    const names = onSite.map((a) => `${a.label} — ${a.name}`).join('; ');
     warnings.push(
-      `Covered by an access agreement (${names}). Public hunting access is already arranged; ` +
-        `follow the posted rules${agreements.some((a) => a.notifyRequired) ? ' and notify the landowner before hunting' : ''}.`,
+      `Public access here (${names}). Access is already arranged; follow the posted rules` +
+        `${onSite.some((a) => a.notifyRequired) ? ' and notify the landowner before hunting' : ''}.`,
     );
   } else if (ownership?.code === 'PVT') {
     warnings.push('The ground under this point is private. Permission is required.');
@@ -294,7 +377,8 @@ export async function queryLocation(
     place,
     unit,
     ownership,
-    agreements,
+    access,
+    accessCaveat: cfg.access?.caveat ?? null,
     hunts,
     hiddenByFilters,
     warnings,

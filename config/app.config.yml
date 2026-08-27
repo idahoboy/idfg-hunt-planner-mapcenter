@@ -1425,17 +1425,66 @@ clickQuery:
       TRIB: Tribal land
       OTHF: Other federal
 
-  # Access agreements OVERRIDE a bare ownership reading. An Access Yes!
-  # property is private land that IDFG has already secured permission on —
-  # reporting it as "private, permission required" is not just unhelpful, it is
-  # wrong, and it hides the single most useful thing on the map.
-  agreements:
-    - id: access-yes
-      label: Access Yes!
-      url: "${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0"
-      fields: [name, generalarea, biggame, uplandgame, waterfowl, fishing, landnotify, accessbegin, accessend, contactname]
-      nameField: name
-      notifyField: landnotify
+  # ---------------------------------------------------------------------
+  # ACCESS
+  #
+  # Every access programme IDFG or its partners maintain, queried together
+  # both AT the clicked point and WITHIN `proximityMeters` of it, because
+  # "there is walk-in access a quarter mile from here" is often more useful
+  # than anything true of the pixel under the cursor.
+  #
+  # These OVERRIDE a bare ownership reading. An Access Yes! property is
+  # private land IDFG has already secured public access on; reporting it as
+  # "private, permission required" is wrong and hides the most useful thing
+  # on the map.
+  #
+  # None of it is authoritative. See `caveat` — the UI states it every time.
+  # ---------------------------------------------------------------------
+  access:
+    caveat: >
+      Access information is assembled from the best available data and is a
+      guide, not a guarantee. Boundaries are approximate, agreements change
+      during the season, and postings on the ground take precedence over
+      anything shown here. Check signs and current rules before you hunt.
+    proximityMeters: 8000
+    sources:
+      - id: access-yes
+        label: Access Yes!
+        url: "${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0"
+        where: "bidid IS NOT NULL"
+        fields: [name, generalarea, biggame, uplandgame, waterfowl, fishing, landnotify, accessbegin, accessend, contactname]
+        nameField: name
+        notifyField: landnotify
+      - id: endowment-lands
+        label: Endowment land
+        url: "${roots.idl}/IDL_Public_Access/FeatureServer/0"
+        fields: ["*"]
+        nameField: Access
+      - id: large-tracts-0
+        label: Large tract agreement
+        url: "${roots.idfgRest}/Access/Large_Tracts_Access_Agreements/MapServer/0"
+        fields: ["*"]
+        nameField: Name
+      - id: large-tracts-1
+        label: Large tract agreement
+        url: "${roots.idfgRest}/Access/Large_Tracts_Access_Agreements/MapServer/1"
+        fields: ["*"]
+        nameField: Name
+      - id: forest-legacy
+        label: Forest Legacy
+        url: "${roots.idfgRest}/Access/Access/MapServer/4"
+        fields: ["*"]
+        nameField: Name
+      - id: other-access
+        label: Other access programme
+        url: "${roots.idfgRest}/Access/Access/MapServer/5"
+        fields: ["*"]
+        nameField: Name
+      - id: wma
+        label: Wildlife Management Area
+        url: "${roots.idfgAgol}/WildlifeManagementAreas/FeatureServer/0"
+        fields: ["*"]
+        nameField: Name
 
   # Hunts are matched from the snapshot, not the network.
   inventory:

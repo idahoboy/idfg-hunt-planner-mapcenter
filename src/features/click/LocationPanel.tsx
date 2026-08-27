@@ -130,20 +130,28 @@ export function LocationPanel(): React.ReactElement | null {
         <p className="hp-loc__loading">Looking up units, ownership and hunts…</p>
       ) : (
         <div className="hp-loc__body">
-          {result.agreements.length > 0 ? (
+          {result.access.length > 0 ? (
             <section className="hp-loc__section">
-              <h3 className="hp-loc__label">Access agreement</h3>
-              {result.agreements.map((a) => (
-                <p key={`${a.id}-${a.name}`} className="hp-loc__agreement">
-                  <strong>{a.label}</strong> — {a.name}
-                  {a.notifyRequired ? (
-                    <span className="hp-loc__agreement-note">
-                      {' '}
-                      · landowner notification required
+              <h3 className="hp-loc__label">Public access here and nearby</h3>
+              <ul className="hp-loc__access">
+                {result.access.map((a) => (
+                  <li key={`${a.id}-${a.name}`} className={a.onSite ? 'is-onsite' : ''}>
+                    <span className="hp-loc__access-dist">
+                      {a.onSite ? 'here' : `${a.miles.toFixed(1)} mi`}
                     </span>
-                  ) : null}
-                </p>
-              ))}
+                    <span>
+                      <strong>{a.label}</strong>
+                      {a.name && a.name !== a.label ? ` — ${a.name}` : ''}
+                      {a.notifyRequired ? (
+                        <span className="hp-loc__agreement-note">
+                          {' '}
+                          · landowner notification required
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </section>
           ) : null}
 
@@ -212,6 +220,13 @@ export function LocationPanel(): React.ReactElement | null {
               ))
             )}
           </section>
+
+          {result.accessCaveat ? (
+            <p className="hp-loc__caveat">
+              <Icon name="info" size={14} />
+              <span>{result.accessCaveat}</span>
+            </p>
+          ) : null}
 
           <p className="hp-loc__footnote">
             Seasons and rules are published at{' '}

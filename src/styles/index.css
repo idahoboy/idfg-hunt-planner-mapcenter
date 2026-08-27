@@ -739,6 +739,28 @@ body {
 .hp-loc__provenance {
   margin: 5px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--hp-text-muted);
 }
+.hp-loc__access { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.hp-loc__access li {
+  display: grid; grid-template-columns: 4.2rem 1fr; gap: 10px;
+  align-items: baseline; font-size: 13px; line-height: 1.4;
+}
+.hp-loc__access-dist {
+  font-family: var(--hp-font-mono); font-variant-numeric: tabular-nums;
+  font-size: 11px; text-align: right; color: var(--hp-text-muted);
+}
+.hp-loc__access li.is-onsite .hp-loc__access-dist {
+  color: #2C5228; font-weight: 700; text-transform: uppercase;
+}
+.hp-loc__caveat {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 14px 0 0; padding: 10px 11px;
+  background: var(--hp-surface-alt); border-radius: var(--hp-radius-sm);
+  font-size: 12px; line-height: 1.5; color: var(--hp-text-muted);
+}
+.hp-loc__caveat svg { flex: none; margin-top: 1px; }
+.hp-locsum__caveat {
+  margin: 8px 0 0; font-size: 11.5px; color: var(--hp-text-muted);
+}
 .hp-loc__agreement { margin: 0; font-size: 14px; }
 .hp-loc__agreement-note { color: var(--hp-danger); font-size: 12.5px; }
 .hp-loc__warnings { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
