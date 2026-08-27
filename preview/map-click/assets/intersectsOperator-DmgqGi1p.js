@@ -1,0 +1,1 @@
+import{t as n}from"./OperatorIntersects-2EF6Mcaw.js";import{h5 as r,hp as c}from"./index-DjVYBSo6.js";const s=new n;function p(t,o){const e=r(t);return s.execute(e.getGeometry(),c(o),e.getSpatialReference(),null)}export{p as execute};

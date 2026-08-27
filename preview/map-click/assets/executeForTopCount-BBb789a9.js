@@ -1,0 +1,1 @@
+import{eQ as n,f1 as c}from"./index-DjVYBSo6.js";import{c as e}from"./queryTopFeatures-s6d5Seal.js";async function u(o,t,r){const a=n(o);return(await e(a,c.from(t),{...r})).data.count}export{u as executeForTopCount};
