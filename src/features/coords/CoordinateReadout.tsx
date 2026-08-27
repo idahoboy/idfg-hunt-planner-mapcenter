@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import * as projection from '@arcgis/core/geometry/projection';
+import { useEffect, useRef, useState } from 'react';
 import SpatialReference from '@arcgis/core/geometry/SpatialReference';
 import type Point from '@arcgis/core/geometry/Point';
 import { useConfig } from '@/config/ConfigContext';
@@ -23,15 +22,34 @@ export function CoordinateReadout(): React.ReactElement | null {
   const tool = (config.tools['coordinateReadout'] ?? {}) as ReadoutConfig;
   const formats = tool.formats ?? ['dd', 'dms'];
 
+  // The projection engine is ~615KB and is only needed for UTM. Statically
+  // importing it made a readout that defaults to decimal degrees the single
+  // largest thing pulled into the boot bundle.
+  const projectionRef = useRef<typeof import('@arcgis/core/geometry/projection') | null>(null);
+  const [projectionReady, setProjectionReady] = useState(false);
+  const needsProjection = formats.includes('utm');
+
   const [formatIndex, setFormatIndex] = useState(0);
   const [primary, setPrimary] = useState('');
   const [utm, setUtm] = useState('');
 
+  // Fetch the projection engine once, and only when a UTM format is on offer.
+  useEffect(() => {
+    if (!needsProjection || projectionRef.current) return;
+    let cancelled = false;
+    void (async () => {
+      const mod = await import('@arcgis/core/geometry/projection');
+      await mod.load();
+      if (cancelled) return;
+      projectionRef.current = mod;
+      setProjectionReady(true);
+    })();
+    return () => { cancelled = true; };
+  }, [needsProjection]);
+
   useEffect(() => {
     if (!ready || !view || tool.enabled === false) return;
 
-    let projectionReady = false;
-    void projection.load().then(() => { projectionReady = true; });
 
     let frame = 0;
     const handle = view.on('pointer-move', (event) => {
@@ -45,9 +63,9 @@ export function CoordinateReadout(): React.ReactElement | null {
         setPrimary(formatPoint(point, format));
 
         const zone = pickUtmZone(point.longitude ?? 0, tool.utmZones ?? []);
-        if (!zone || !projectionReady) { setUtm(''); return; }
+        if (!zone || !projectionReady || !projectionRef.current) { setUtm(''); return; }
         try {
-          const projected = projection.project(
+          const projected = projectionRef.current.project(
             point, new SpatialReference({ wkid: zone.wkid }),
           ) as Point | null;
           setUtm(

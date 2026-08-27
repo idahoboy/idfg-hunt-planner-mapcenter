@@ -1,11 +1,10 @@
 import {
   createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode,
 } from 'react';
-import EsriMap from '@arcgis/core/Map';
-import MapView from '@arcgis/core/views/MapView';
 import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer';
-import Extent from '@arcgis/core/geometry/Extent';
 import * as reactiveUtils from '@arcgis/core/core/reactiveUtils';
+import type EsriMap from '@arcgis/core/Map';
+import type MapView from '@arcgis/core/views/MapView';
 import type Layer from '@arcgis/core/layers/Layer';
 
 import { useConfig } from '@/config/ConfigContext';
@@ -59,6 +58,7 @@ export function MapProvider({ children }: { children: ReactNode }): React.ReactE
   const viewRef = useRef<MapView | null>(null);
   const mapRef = useRef<EsriMap | null>(null);
   const layersRef = useRef(new Map<string, BuiltLayer>());
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   const addHealthProblem = useAppStore((s) => s.addHealthProblem);
   const setHealthOk = useAppStore((s) => s.setHealthOk);
@@ -94,6 +94,27 @@ export function MapProvider({ children }: { children: ReactNode }): React.ReactE
     container.className = 'hp-map__view';
     host.append(container);
 
+    // Map and MapView are the bulk of the SDK. Importing them statically put
+    // them in the entry chunk, so the shell — which was ready in about half a
+    // second — waited on parsing several megabytes it did not need in order to
+    // render the filter bar and results. Fetched here instead, after mount.
+    let disposed = false;
+    void (async () => {
+      const [{ default: EsriMapCtor }, { default: MapViewCtor }, { default: ExtentCtor }] =
+        await Promise.all([
+          import('@arcgis/core/Map'),
+          import('@arcgis/core/views/MapView'),
+          import('@arcgis/core/geometry/Extent'),
+        ]);
+      if (disposed || cancelled) return;
+      start(EsriMapCtor, MapViewCtor, ExtentCtor);
+    })();
+
+    function start(
+      EsriMap: typeof import('@arcgis/core/Map').default,
+      MapView: typeof import('@arcgis/core/views/MapView').default,
+      Extent: typeof import('@arcgis/core/geometry/Extent').default,
+    ): void {
     const basemaps = buildBasemaps(config.basemaps.items);
     const urlState = readUrlState(config);
     const initialBasemapId =
@@ -211,13 +232,20 @@ export function MapProvider({ children }: { children: ReactNode }): React.ReactE
       { initial: true },
     );
 
-    return () => {
-      cancelled = true;
+    cleanupRef.current = () => {
       gateHandle.remove();
       view.destroy();
       container.remove();
       viewRef.current = null;
       mapRef.current = null;
+    };
+    }
+
+    return () => {
+      cancelled = true;
+      disposed = true;
+      cleanupRef.current?.();
+      cleanupRef.current = null;
     };
   }, [config, addHealthProblem, setHealthOk, setLayerVisibilityBulk, setBasemapId, setGatedLayers, overlays]);
 
