@@ -20,6 +20,7 @@ export function useMapClick(): void {
   const layerVisibility = useAppStore((s) => s.layerVisibility);
   const setClickResult = useAppStore((s) => s.setClickResult);
   const setClickLoading = useAppStore((s) => s.setClickLoading);
+  const setClickDetailOpen = useAppStore((s) => s.setClickDetailOpen);
 
   // Read live state inside the handler without re-binding the listener on
   // every filter keystroke.
@@ -27,6 +28,7 @@ export function useMapClick(): void {
   latest.current = { filters, layerVisibility };
 
   const runId = useRef(0);
+  const restored = useRef(false);
 
   useEffect(() => {
     if (!ready || !view || !config.clickQuery.enabled) return;
@@ -80,45 +82,54 @@ export function useMapClick(): void {
       })();
     });
 
-    // A shared link carries ?at=1 alongside the X/Y/zoom the map already
-    // round-trips, so the recipient lands on the answer rather than on a bare
-    // coordinate they have to click for themselves.
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('at') === '1') {
-      const center = view.center;
-      if (center) {
-        const id = ++runId.current;
-        setClickLoading(true);
-        marker.geometry = center;
-        searchLayer.add(marker);
-        void (async () => {
-          try {
-            const visible = new Set(
-              Object.entries(latest.current.layerVisibility)
-                .filter(([, on]) => on)
-                .map(([layerId]) => layerId),
-            );
-            const result = await queryLocation(
-              view,
-              center,
-              config,
-              latest.current.filters,
-              visible,
-            );
-            if (id !== runId.current) return;
-            setClickResult(result);
-            useAppStore.getState().setClickDetailOpen(true);
-          } finally {
-            if (id === runId.current) setClickLoading(false);
-          }
-        })();
-      }
-    }
-
     return () => {
       handle.remove();
       searchLayer.remove(marker);
       view.popupEnabled = true;
     };
   }, [ready, view, config, searchLayer, setClickResult, setClickLoading]);
+
+  /**
+   * A shared link carries ?at=1 alongside the X/Y/zoom the map already
+   * round-trips, so the recipient lands on the answer rather than a bare
+   * coordinate they have to click for themselves.
+   *
+   * This is deliberately its own effect. Living inside the click handler's
+   * effect meant that any re-run of that effect bumped the run-id guard and
+   * discarded this query's own result — the panel finished loading and then
+   * showed nothing at all.
+   */
+  useEffect(() => {
+    if (!ready || !view || !config.clickQuery.enabled) return;
+    if (restored.current) return;
+    if (new URLSearchParams(window.location.search).get('at') !== '1') return;
+    restored.current = true;
+
+    const center = view.center;
+    if (!center) return;
+
+    setClickLoading(true);
+    void (async () => {
+      try {
+        const visible = new Set(
+          Object.entries(latest.current.layerVisibility)
+            .filter(([, on]) => on)
+            .map(([layerId]) => layerId),
+        );
+        const result = await queryLocation(
+          view,
+          center,
+          config,
+          latest.current.filters,
+          visible,
+        );
+        setClickResult(result);
+        setClickDetailOpen(true);
+      } catch (err) {
+        console.warn('[click] shared-location restore failed', err);
+      } finally {
+        setClickLoading(false);
+      }
+    })();
+  }, [ready, view, config, setClickResult, setClickLoading, setClickDetailOpen]);
 }
