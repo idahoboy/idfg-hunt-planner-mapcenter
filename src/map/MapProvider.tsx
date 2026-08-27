@@ -136,7 +136,17 @@ export function MapProvider({ children }: { children: ReactNode }): React.ReactE
 
       // Reverse: config lists top-of-legend first, ArcGIS draws last-added on top.
       const ordered = [...built].reverse();
-      map.addMany(ordered.map((b) => b.layer as Layer));
+
+      // Only ADD the layers that are visible.
+      //
+      // Deferring load() alone did nothing: Map.add() loads a layer whether or
+      // not it is visible, so all 45 still hit their services at boot. The
+      // layer has to stay out of the map until it is wanted. `addAt` preserves
+      // draw order when one is added later.
+      const seedVisible = (b: BuiltLayer): boolean =>
+        urlState.layerVisibility[b.config.id] ?? b.config.visible;
+
+      map.addMany(ordered.filter(seedVisible).map((b) => b.layer as Layer));
       map.addMany([
         overlays.uploadLayer,
         overlays.highlightLayer,
@@ -159,13 +169,16 @@ export function MapProvider({ children }: { children: ReactNode }): React.ReactE
 
       // Seed visibility from URL bitmask first, config default otherwise.
       const visibility: Record<string, boolean> = {};
-      const opacity: Record<string, number> = {};
       for (const b of built) {
-        visibility[b.config.id] = urlState.layerVisibility[b.config.id] ?? b.config.visible;
-        opacity[b.config.id] = b.config.opacity;
+        visibility[b.config.id] = seedVisible(b);
         b.layer.visible = visibility[b.config.id]!;
       }
       setLayerVisibilityBulk(visibility);
+
+      // Draw order for layers added later: everything below this one in the
+      // config list is already in the map, so its index is the count of
+      // visible layers that follow it.
+      (map as unknown as { __order: string[] }).__order = ordered.map((b) => b.config.id);
 
       await view.when();
       if (cancelled) return;

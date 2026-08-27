@@ -7,7 +7,7 @@ import { LayerLegend } from './LayerLegend';
 
 export function LayersPanel(): React.ReactElement {
   const config = useConfig();
-  const { layers } = useMap();
+  const { layers, map } = useMap();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(config.groups.map((g) => [g.id, g.defaultOpen])),
   );
@@ -23,7 +23,21 @@ export function LayersPanel(): React.ReactElement {
   function toggleLayer(layerId: string, next: boolean): void {
     setLayerVisible(layerId, next);
     const built = layers.get(layerId);
-    if (built) built.layer.visible = next;
+    if (built) {
+      built.layer.visible = next;
+      // A layer is kept out of the map until first switched on, so this is
+      // where most of them meet their service for the first time.
+      if (next && map && !map.layers.includes(built.layer)) {
+        const order = (map as unknown as { __order?: string[] }).__order ?? [];
+        const rank = order.indexOf(layerId);
+        let index = 0;
+        for (const other of map.layers.toArray()) {
+          const r = order.indexOf(other.id);
+          if (r !== -1 && r < rank) index += 1;
+        }
+        map.layers.add(built.layer, index);
+      }
+    }
     // Opening a layer reveals its legend, matching the legacy auto-expand.
     if (next) setExpanded((prev) => ({ ...prev, [layerId]: true }));
   }
