@@ -1,0 +1,1 @@
+import{gA as s,aB as u}from"./index-D0d6wuNl.js";const r=new s;function f(n,e){return r.accelerateGeometry(n,e,1)}function i(n,e,t){return r.execute(n,e,t,null)}function l(n,e,t,o){const c=r.executeMany(new u(n),new u([e]),t,null,o);return Array.from(c)}function m(){return r.supportsCurves()}export{i as o,m as s,f as t,l as u};

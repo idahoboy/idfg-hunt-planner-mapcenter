@@ -1144,8 +1144,7 @@ huntFinder:
           - { label: Unit, field: NAME }
           - { label: Elk zone, field: Elk_Zone }
         links:
-          - { label: Deer seasons for this unit, field: regular_deer_url }
-          - { label: Elk zone seasons, field: elkZone_url_1 }
+  
           - { label: White-tailed deer information, field: gmu_wtd_url }
       facetFields:
         unit: NAME
@@ -1485,6 +1484,12 @@ clickQuery:
         url: "${roots.idfgAgol}/WildlifeManagementAreas/FeatureServer/0"
         fields: ["*"]
         nameField: Name
+
+  # Every hunt has a public detail page keyed by the API's own `id` —
+  # /ifwis/huntplanner/hunt/82204 resolves to "Hunt Area 55-2 Elk Controlled
+  # Hunt 2093". Verified against live pages; a bogus id returns an empty shell.
+  huntDetailUrl: "https://idfg.idaho.gov/ifwis/huntplanner/hunt/{id}"
+  rulesUrl: "https://idfg.idaho.gov/rules"
 
   # Hunts are matched from the snapshot, not the network.
   inventory:
