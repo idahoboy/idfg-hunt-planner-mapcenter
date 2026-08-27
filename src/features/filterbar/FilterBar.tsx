@@ -78,6 +78,13 @@ export function FilterBar(): React.ReactElement | null {
           {primary.map((facet) => (
             <FacetControl key={facet.id} facet={facet} config={config} />
           ))}
+
+          {activeCount > 0 ? (
+            <button type="button" className="hp-clearall hp-clearall--pill" onClick={clearAllFilters}>
+              <Icon name="close" size={13} />
+              Clear all
+            </button>
+          ) : null}
         </div>
       </div>
     );
@@ -100,6 +107,14 @@ export function FilterBar(): React.ReactElement | null {
             <Icon name="filter" size={16} />
             More filters
             <Icon name={moreOpen ? 'chevronDown' : 'chevronRight'} size={14} />
+          </button>
+        ) : null}
+
+        {activeCount > 0 ? (
+          <button type="button" className="hp-clearall" onClick={clearAllFilters}>
+            <Icon name="close" size={14} />
+            Clear all
+            <span className="hp-clearall__count">{activeCount}</span>
           </button>
         ) : null}
 

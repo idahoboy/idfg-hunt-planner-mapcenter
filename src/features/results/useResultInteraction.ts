@@ -6,6 +6,7 @@ import { useMap } from '@/map/MapProvider';
 import { queryFeatures, sqlIdIn, sqlLiteral } from '@/lib/arcgisQuery';
 import type { SourceConfig } from '@/config/schema';
 import { buildSymbol } from '@/map/symbols';
+import { zoomToGeometry } from '@/lib/zoomTo';
 
 const geometryCache = new Map<string, __esri.GeometryUnion | null>();
 
@@ -135,10 +136,7 @@ export function useResultInteraction(): void {
         );
 
         if (config.huntFinder.results.clickZooms) {
-          await view.goTo(
-            { target: geometry, padding: { top: 40, bottom: 40, left: 40, right: 40 } },
-            { duration: 550 },
-          );
+          await zoomToGeometry(view, geometry, { duration: 550 });
         }
       } catch {
         /* selection zoom is best-effort */

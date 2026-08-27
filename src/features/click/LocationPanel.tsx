@@ -5,6 +5,7 @@ import { Icon } from '@/components/Icon';
 import type { HuntMatch, LocationResult } from './locationQuery';
 import { buildLocationLink, copyText, formatLocationText } from './shareLocation';
 import { useMap } from '@/map/MapProvider';
+import { zoomToBbox } from '@/lib/zoomTo';
 
 const GRADE_LABEL: Record<string, string> = {
   open: 'Open access',
@@ -144,11 +145,7 @@ export function LocationPanel(): React.ReactElement | null {
    */
   const zoomTo = (m: HuntMatch): void => {
     if (!view || !m.bbox) return;
-    const [xmin, ymin, xmax, ymax] = m.bbox;
-    void view.goTo(
-      { target: { type: 'extent', xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } } },
-      { duration: 500 },
-    );
+    void zoomToBbox(view, m.bbox);
   };
   const [copied, setCopied] = useState<'text' | 'link' | null>(null);
 

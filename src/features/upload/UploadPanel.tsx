@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import PopupTemplate from '@arcgis/core/PopupTemplate';
 import { useConfig } from '@/config/ConfigContext';
 import { useMap } from '@/map/MapProvider';
+import { zoomToGeometry } from '@/lib/zoomTo';
 import { useAppStore } from '@/state/store';
 import { parseTrackFile, type ParsedTrack } from '@/lib/trackParsers';
 import { buildSymbol } from '@/map/symbols';
@@ -94,7 +95,11 @@ export function UploadPanel(): React.ReactElement {
           .toArray()
           .map((g) => g.geometry)
           .filter((g): g is __esri.GeometryUnion => Boolean(g));
-        await view.goTo({ target: geometries, padding: { top: 40, bottom: 40, left: 40, right: 40 } });
+        if (geometries.length === 1 && geometries[0]) {
+          await zoomToGeometry(view, geometries[0]);
+        } else {
+          await view.goTo({ target: geometries, padding: { top: 40, bottom: 40, left: 40, right: 40 } });
+        }
       }
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Upload failed', 'error');

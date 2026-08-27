@@ -7,6 +7,7 @@ import Search from '@arcgis/core/widgets/Search';
 import Locator from '@arcgis/core/rest/support/AddressCandidate';
 import { useConfig } from '@/config/ConfigContext';
 import { useMap } from '@/map/MapProvider';
+import { zoomToGeometry } from '@/lib/zoomTo';
 import { useAppStore } from '@/state/store';
 import { parseCoordinate, formatPoint, type CoordFormat } from '@/lib/coordinates';
 import { Icon } from '@/components/Icon';
@@ -100,7 +101,11 @@ export function SearchPanel(): React.ReactElement {
       }),
     }));
 
-    void view.goTo({ target: point, scale: tool.zoomScale ?? 36112 });
+    // A geocoded result is a point, so it takes the point rule rather than an
+    // extent: zoom 12 unless the config pins a scale.
+    void (tool.zoomScale
+      ? view.goTo({ target: point, scale: tool.zoomScale })
+      : zoomToGeometry(view, point));
   }
 
   return (

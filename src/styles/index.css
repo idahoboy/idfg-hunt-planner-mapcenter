@@ -286,6 +286,25 @@ body {
 }
 .hp-link--clear-all { margin-left: 4px; }
 
+/* Resetting the filters was a text link buried under the chip row, and on a
+   phone it did not exist at all — the only route was opening the sheet. */
+.hp-clearall {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 12px;
+  border: 1px solid var(--hp-border-strong); border-radius: 999px;
+  background: var(--hp-surface); color: var(--hp-text);
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+.hp-clearall:hover { border-color: var(--hp-danger); color: var(--hp-danger); }
+.hp-clearall__count {
+  display: inline-grid; place-items: center;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--hp-surface-alt); color: var(--hp-text-muted);
+  font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.hp-clearall--pill { height: 38px; flex: 0 0 auto; }
+
 /* ============================ switch ============================ */
 .hp-switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
 .hp-switch input { position: absolute; opacity: 0; width: 0; height: 0; }

@@ -3,6 +3,7 @@ import Graphic from '@arcgis/core/Graphic';
 import { useConfig } from '@/config/ConfigContext';
 import { useAppStore } from '@/state/store';
 import { useMap } from '@/map/MapProvider';
+import { zoomToGeometry } from '@/lib/zoomTo';
 import { queryFeatures, sqlIdIn } from '@/lib/arcgisQuery';
 import { buildSymbol } from '@/map/symbols';
 import { Icon } from '@/components/Icon';
@@ -88,6 +89,10 @@ export function HighlightPanel(): React.ReactElement {
 
       if (geometries.length === 0) {
         showToast('Nothing selected to highlight.', 'info');
+      } else if (geometries.length === 1 && geometries[0]) {
+        // One feature follows the shared rule: extent for a shape, a legible
+        // fixed zoom for a point.
+        await zoomToGeometry(view, geometries[0], { duration: 600 });
       } else {
         await view.goTo(
           { target: geometries, padding: { top: 40, bottom: 40, left: 40, right: 40 } },
