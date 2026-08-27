@@ -103,10 +103,13 @@ export function useMapClick(): void {
     if (!ready || !view || !config.clickQuery.enabled) return;
     if (restored.current) return;
     if (new URLSearchParams(window.location.search).get('at') !== '1') return;
-    restored.current = true;
 
+    // Check the centre BEFORE marking this done. The effect can run once while
+    // the view is still settling and has no centre yet; setting the flag first
+    // burned the single attempt and the shared link resolved to nothing.
     const center = view.center;
     if (!center) return;
+    restored.current = true;
 
     setClickLoading(true);
     void (async () => {
@@ -126,7 +129,12 @@ export function useMapClick(): void {
         setClickResult(result);
         setClickDetailOpen(true);
       } catch (err) {
-        console.warn('[click] shared-location restore failed', err);
+        // Surface it: a shared link that quietly resolves to an empty panel is
+        // indistinguishable from a broken one.
+        console.error('[click] shared-location restore failed', err);
+        useAppStore
+          .getState()
+          .showToast('Could not load the shared location', 'error');
       } finally {
         setClickLoading(false);
       }
