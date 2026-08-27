@@ -1226,7 +1226,7 @@ huntFinder:
         fields:
           - { label: Species, field: Common_Name }
           - { label: Scientific name, field: Scientific_Name }
-          - { label: Category, field: Category }
+          - { label: Group, field: Category }
           - { label: Season, field: Season }
           - { label: Range, field: Sqkm, format: number, suffix: " sq km" }
         content: >
