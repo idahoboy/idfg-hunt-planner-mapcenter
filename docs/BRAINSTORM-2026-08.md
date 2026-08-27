@@ -493,6 +493,55 @@ two meanings.
 
 ## Backlog
 
+### Geometry delivery — measured, not guessed
+
+The question was whether to pre-generate static GeoJSON, stand up an endpoint,
+or reach for GraphQL. The measurements answer it, and the answer is mostly
+"none of those".
+
+**Payload against `maxAllowableOffset`, GMU layer, 100 units:**
+
+| Simplification | Payload | Vertices | Time |
+|---|---:|---:|---:|
+| none | **22,230 KB** | 558,118 | 3.9 s |
+| 0.0005° (~55 m) | 854 KB | 43,912 | 1.7 s |
+| 0.002° (~220 m) | 311 KB | 15,801 | 1.1 s |
+| 0.01° (~1.1 km) | **74 KB** | 3,932 | 0.7 s |
+
+Full geometry is 300× the size of a rendition nobody could tell apart at the
+zoom where a unit boundary is read. The lever already exists in the service.
+
+**The more useful realisation: "zoom to" does not need geometry at all.**
+It needs four numbers. An extent query for one hunt area is **168 bytes**.
+So the snapshot builder now pulls each layer once at a coarse offset, computes
+bounding boxes locally, and stores them:
+
+- 394 hunt-area boxes + 100 unit boxes
+- **9 KB** added to `inventory.json` (471 KB → 480 KB)
+- Zoom-to is instant and needs no network at all
+
+A box computed from simplified geometry is identical to one from full geometry
+at any zoom a person would use it for, so the cheap fetch costs nothing in
+accuracy.
+
+#### What to do for each job
+
+| Job | Answer |
+|---|---|
+| Zoom to a hunt or unit | **Precomputed extents.** Done — 9 KB, no request |
+| Draw the one selected boundary | **Query on demand** with `maxAllowableOffset` tuned to zoom. One feature is small |
+| Draw many boundaries at once | **Static GeoJSON, generated at build**, simplified to 0.002°. All GMUs = 311 KB |
+| Statewide detail at every zoom | **Vector tiles (PMTiles)** — one static file, range requests, zoom-dependent simplification built in. Only if the layer above stops being enough |
+
+**GraphQL does not help here.** It shapes structured queries; the bottleneck is
+geometry payload and zoom-dependent generalisation, which it has no answer for.
+It would add a service to operate without removing a single kilobyte. The same
+goes for any new endpoint: `maxAllowableOffset` and a build-time file already
+do the work, and neither needs something to keep running.
+
+The rule of thumb: **generate at build, serve statically, simplify to the zoom.**
+It is the same argument as the inventory snapshot, applied to geometry.
+
 ### Brochure page numbers — needs IDFG
 
 A hunt now links to its own page (`/ifwis/huntplanner/hunt/{id}`, verified

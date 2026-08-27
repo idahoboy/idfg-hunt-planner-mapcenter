@@ -167,6 +167,53 @@ async function fetchRestrictionMap() {
   return { byId, unused };
 }
 
+/**
+ * Bounding boxes for every hunt area and unit.
+ *
+ * "Zoom to" does not need geometry, it needs four numbers. The full GMU layer
+ * is 22MB of vertices; an extent is 168 bytes. Rather than 300+ extent queries,
+ * the geometry is pulled ONCE per layer at a coarse `maxAllowableOffset` —
+ * which drops the GMU payload from 22MB to 74KB — and the boxes are computed
+ * here. A box derived from simplified geometry is identical to one derived
+ * from full geometry at any zoom a person would use it for.
+ */
+async function fetchExtents(url, keyFields, offset = 0.01) {
+  const q = new URLSearchParams({
+    where: '1=1',
+    outFields: keyFields.join(','),
+    returnGeometry: 'true',
+    maxAllowableOffset: String(offset),
+    outSR: '4326',
+    f: 'json',
+  });
+  const d = await getJson(`${url}?${q}`, `extents for ${url}`);
+  const out = new Map();
+  for (const f of d.features ?? []) {
+    const rings = f.geometry?.rings;
+    if (!rings) continue;
+    let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
+    for (const ring of rings) {
+      for (const [x, y] of ring) {
+        if (x < xmin) xmin = x;
+        if (y < ymin) ymin = y;
+        if (x > xmax) xmax = x;
+        if (y > ymax) ymax = y;
+      }
+    }
+    if (!Number.isFinite(xmin)) continue;
+    const key = keyFields.map((k) => String(f.attributes[k] ?? '').trim()).join(SEP);
+    const prev = out.get(key);
+    // A key can span several rings or rows; keep the union.
+    out.set(
+      key,
+      prev
+        ? [Math.min(prev[0], xmin), Math.min(prev[1], ymin), Math.max(prev[2], xmax), Math.max(prev[3], ymax)]
+        : [xmin, ymin, xmax, ymax].map((n) => Number(n.toFixed(5))),
+    );
+  }
+  return out;
+}
+
 async function fetchHuntAreaIndex() {
   const url =
     `${HUNT_GIS}?where=1%3D1&outFields=AreaID,BigGame,HuntArea&returnGeometry=false` +
@@ -210,7 +257,17 @@ async function main() {
   const areaIndex = await fetchHuntAreaIndex();
   console.log(`  distinct BigGame + HuntArea pairs in GIS: ${areaIndex.size}`);
 
-  console.log('4. join');
+  console.log('4. extents (one coarse request per layer, boxes computed locally)');
+  const [areaExtents, unitExtents] = await Promise.all([
+    fetchExtents(HUNT_GIS, ['AreaID']).catch(() => new Map()),
+    fetchExtents(
+      'https://gisportal-idfg.idaho.gov/hosting/rest/services/Hunting/MapServer/3/query',
+      ['NAME'],
+    ).catch(() => new Map()),
+  ]);
+  console.log(`  hunt-area boxes: ${areaExtents.size}   unit boxes: ${unitExtents.size}`);
+
+  console.log('5. join');
   const referenced = new Set();
   const ambiguous = new Map();
   const unmappable = [];
@@ -292,6 +349,11 @@ async function main() {
       general: hunts.filter((h) => h.type === 'general').length,
       mappedAreas: referenced.size,
       byAccessGrade: byGrade,
+    },
+    // Four numbers per feature. This is what makes "zoom to" instant and free.
+    extents: {
+      areas: Object.fromEntries(areaExtents),
+      units: Object.fromEntries(unitExtents),
     },
     vocabulary: {
       species: [...new Set(hunts.map((h) => h.species))].sort(),

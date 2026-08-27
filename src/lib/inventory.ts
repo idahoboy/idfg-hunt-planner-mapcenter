@@ -39,8 +39,12 @@ export interface RestrictionInfo {
   access?: 'limited' | 'permission' | 'rule';
 }
 
+export type Bbox = [number, number, number, number];
+
 export interface Inventory {
   generated: string;
+  /** Four numbers per feature — what "zoom to" actually needs. */
+  extents?: { areas: Record<string, Bbox>; units: Record<string, Bbox> };
   counts: Record<string, unknown>;
   vocabulary: { restrictions: RestrictionInfo[] } & Record<string, unknown>;
   dataQuality: {
@@ -61,6 +65,9 @@ export interface IndexedInventory {
   restrictions: Map<number, RestrictionInfo>;
   /** `${species}${area}` for areas whose boundary is undecided. */
   ambiguous: Set<string>;
+  /** feature key -> bounding box, so "zoom to" needs no geometry. */
+  areaExtents: Record<string, Bbox>;
+  unitExtents: Record<string, Bbox>;
 }
 
 let pending: Promise<IndexedInventory | null> | null = null;
@@ -93,6 +100,8 @@ function index(inv: Inventory): IndexedInventory {
     ambiguous: new Set(
       (inv.dataQuality?.ambiguousAreas ?? []).map((a) => `${a.species}${a.area}`),
     ),
+    areaExtents: inv.extents?.areas ?? {},
+    unitExtents: inv.extents?.units ?? {},
   };
 }
 

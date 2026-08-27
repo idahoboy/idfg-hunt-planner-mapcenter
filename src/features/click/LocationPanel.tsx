@@ -21,10 +21,12 @@ function HuntRow({
   match,
   detailUrl,
   tagUrl,
+  onZoom,
 }: {
   match: HuntMatch;
   detailUrl?: string;
   tagUrl?: string;
+  onZoom: (m: HuntMatch) => void;
 }): React.ReactElement {
   const { hunt } = match;
   return (
@@ -86,8 +88,18 @@ function HuntRow({
 
       {/* Two different things: this opportunity in this area, versus the tag
           wherever it is valid. Labelled apart so the distinction survives. */}
-      {detailUrl || tagUrl ? (
+      {detailUrl || tagUrl || match.bbox ? (
         <div className="hp-loc-hunt__links">
+          {match.bbox ? (
+            <button
+              type="button"
+              className="hp-loc-hunt__link hp-loc-hunt__zoom"
+              onClick={() => onZoom(match)}
+            >
+              <Icon name="crosshair" size={13} />
+              Zoom to
+            </button>
+          ) : null}
           {detailUrl ? (
             <a
               className="hp-loc-hunt__link"
@@ -125,6 +137,19 @@ export function LocationPanel(): React.ReactElement | null {
   const setDetailOpen = useAppStore((s) => s.setClickDetailOpen);
   const showToast = useAppStore((s) => s.showToast);
   const { view } = useMap();
+
+  /**
+   * Frames the hunt from its precomputed box. No geometry is fetched: the
+   * snapshot carries four numbers per area, which is all a zoom needs.
+   */
+  const zoomTo = (m: HuntMatch): void => {
+    if (!view || !m.bbox) return;
+    const [xmin, ymin, xmax, ymax] = m.bbox;
+    void view.goTo(
+      { target: { type: 'extent', xmin, ymin, xmax, ymax, spatialReference: { wkid: 4326 } } },
+      { duration: 500 },
+    );
+  };
   const [copied, setCopied] = useState<'text' | 'link' | null>(null);
 
   const grouped = useMemo(() => {
@@ -258,6 +283,7 @@ export function LocationPanel(): React.ReactElement | null {
                       <HuntRow
                         key={m.hunt.id}
                         match={m}
+                        onZoom={zoomTo}
                         {...(config.clickQuery.huntDetailUrl
                           ? { detailUrl: config.clickQuery.huntDetailUrl }
                           : {})}

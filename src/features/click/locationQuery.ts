@@ -15,6 +15,8 @@ export interface PlaceFact {
 
 export interface HuntMatch {
   hunt: Hunt;
+  /** Bounding box to frame this hunt, if the snapshot knows one. */
+  bbox?: [number, number, number, number];
   /** Why this hunt is being shown — a unit reference, or a resolved polygon. */
   via: 'unit' | 'huntArea';
   /** The GMU boundary overstates where this hunt is legal. */
@@ -310,11 +312,22 @@ export async function queryLocation(
       hiddenByFilters += 1;
       return;
     }
+    // Prefer the hunt area's own box; fall back to the unit it references,
+    // which is the right frame for a general tag anyway.
+    const areaBox = hunt.areaIds
+      ?.map((id) => indexed?.areaExtents[String(id)])
+      .find(Boolean);
+    const unitBox = hunt.unitsReferenced
+      ?.map((u) => indexed?.unitExtents[u])
+      .find(Boolean);
+    const bbox = areaBox ?? unitBox;
+
     matches.set(hunt.id, {
       hunt,
       via,
       qualified: hunt.areaQualified,
       uncertainBoundary: uncertain,
+      ...(bbox ? { bbox } : {}),
     });
   };
 
