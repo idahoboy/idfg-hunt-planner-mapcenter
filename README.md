@@ -356,8 +356,12 @@ copied in so the app works on networks that block `js.arcgis.com`).
 - **`fire-emergency-closures` is disabled.** Its ArcGIS Online item now returns
   *Token Required*; nothing equivalent is published elsewhere. Re-share the item
   and set `enabled: true`.
-- **`gis2.idaho.gov` was unreachable** during the 2026-08 audit. It is retained
-  as `fallbackUrl` for counties and campgrounds; both have live primaries.
+- **`gis2.idaho.gov` is unreachable and is no longer referenced.** The host
+  resolves in DNS but never completes a TCP handshake, so requests hang until the
+  browser gives up (~100s) rather than erroring. It was previously kept as
+  `fallbackUrl` for counties and campgrounds; those fallbacks were removed on
+  2026-08-27, because falling back to a blackholed host converts a fast failure
+  into a long silent one. Both layers have live primaries.
 - **KMZ upload** is rejected with an explanatory message rather than unzipped.
   Uploading the `.kml` inside works.
 - The Highlight tool loads up to 2000 options per picker into a native

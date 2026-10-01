@@ -89,12 +89,19 @@ work**; four of them had been silently commented out rather than replaced.
 
 | Layer | Endpoint | Handling |
 |---|---|---|
-| Counties | `gis2.idaho.gov/…/Idaho_Counties/MapServer/1` | Primary switched to the IDFG-hosted `IdahoConservationPlannerAdministrativeBoundaries/1`; old URL retained as `fallbackUrl` |
-| Campgrounds | `gis2.idaho.gov/…/Campgrounds/MapServer/0` | Primary switched to USFS `EDW_RecreationOpportunities_01`; old URL retained as `fallbackUrl` |
+| Counties | `gis2.idaho.gov/…/Idaho_Counties/MapServer/1` | Primary switched to the IDFG-hosted `IdahoConservationPlannerAdministrativeBoundaries/1`; fallback **removed** 2026-08-27 |
+| Campgrounds | `gis2.idaho.gov/…/Campgrounds/MapServer/0` | Primary switched to USFS `EDW_RecreationOpportunities_01`; fallback **removed** 2026-08-27 |
 
-`gis2.idaho.gov` did not respond from the audit network. It may be reachable
-from inside the IDFG network — run `npm run config:health` from a deployment
-host to confirm before deciding whether to swap the primaries back.
+**Updated 2026-08-27.** `gis2.idaho.gov` is not merely slow — it resolves in DNS
+(164.165.65.215) but never completes a TCP handshake on 443. Requests hang until
+the browser gives up (~100s) instead of erroring. In the legacy app this held the
+entire Administrative and Reference layer lists hostage, because the ArcGIS
+`LayerList` widget does not render until every layer it manages settles.
+
+Both `fallbackUrl` entries and the `roots.idaho` root were therefore removed from
+`app.config.yml`: a fallback to a blackholed host converts a fast, visible failure
+into a long, silent one. If the host is restored, re-add it as a primary — not a
+fallback — after confirming it responds.
 
 ---
 
