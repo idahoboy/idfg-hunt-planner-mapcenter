@@ -185,8 +185,16 @@ export function LocationPanel(): React.ReactElement | null {
             <p className="hp-loc__coord">{formatCoord(result.lon, result.lat)}</p>
           ) : null}
         </div>
-        <button type="button" className="hp-iconbtn" onClick={clear} aria-label="Close location details">
-          <Icon name="close" size={16} />
+        {/* Dismiss. On a phone this panel covers the screen, so the close
+            control is the only way out and gets its own class and a larger
+            target rather than sharing the generic icon-button size. */}
+        <button
+          type="button"
+          className="hp-iconbtn hp-loc__close"
+          onClick={clear}
+          aria-label="Close location details"
+        >
+          <Icon name="close" size={18} />
         </button>
       </header>
 

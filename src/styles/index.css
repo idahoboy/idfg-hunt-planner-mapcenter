@@ -701,15 +701,19 @@ body {
 }
 
 /* ======================= location (map click) ======================= */
-@keyframes hp-flyin { from { transform: translateX(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Slides in from the edge it is docked to, so the motion explains where the
+   panel came from and where dismissing it will send it. */
+@keyframes hp-slideover { from { transform: translateX(100%); } to { transform: none; } }
 .hp-loc {
   position: absolute; z-index: 32;
-  animation: hp-flyin 160ms ease-out;
-  right: 12px; top: 12px; bottom: 12px; width: 380px; max-width: calc(100% - 24px);
+  animation: hp-slideover 200ms cubic-bezier(.22,.61,.36,1);
+  right: 0; top: 0; bottom: 0; width: 400px; max-width: 100%;
   display: flex; flex-direction: column;
   background: var(--hp-surface);
-  border: 1px solid var(--hp-border-strong);
-  border-radius: var(--hp-radius);
+  /* Flush to the edge: only the inner border reads, so it sits on the map
+     like a drawer rather than floating as a card. */
+  border: 0; border-left: 1px solid var(--hp-border-strong);
+  border-radius: 0;
   box-shadow: var(--hp-shadow-lg);
   overflow: hidden;
 }
@@ -1162,14 +1166,34 @@ body {
     bottom: calc(74px + env(safe-area-inset-bottom));
     width: auto; max-width: none;
   }
+  /* On a phone the panel takes the whole screen rather than a sheet that
+     leaves a sliver of map behind it: the answer is long enough that a 72vh
+     sheet spent most of its height scrolling. Full height means the close
+     control has to be unmissable, so it is a real button in the top corner
+     rather than a small icon sharing a row with a back arrow. */
   .hp-loc {
-    right: 0; left: 0; top: auto; bottom: 0;
-    width: 100%; max-width: none; max-height: 72vh;
-    border-radius: 16px 16px 0 0;
-    border-left: 0; border-right: 0; border-bottom: 0;
+    /* fixed, not absolute: the panel is nested inside the map wrapper, so
+       inset:0 only filled the map area and left the header and filter bar
+       showing. Fixed takes the viewport, which is what "fills the page" means
+       — and is why the close control has to be unmissable. */
+    position: fixed;
+    inset: 0;
+    width: 100%; max-width: none; max-height: none;
+    border: 0; border-radius: 0;
     padding-bottom: env(safe-area-inset-bottom);
-    z-index: 42;
+    animation: none;
+    z-index: 60;
   }
+  .hp-loc__header {
+    position: sticky; top: 0; z-index: 2;
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+  .hp-loc__close {
+    flex: none;
+    width: 40px; min-width: 40px; height: 40px; border-radius: 50%;
+    background: var(--hp-surface); border: 1px solid var(--hp-border-strong);
+  }
+  .hp-loc__close:hover, .hp-loc__close:active { background: var(--hp-surface-alt); }
   .hp-loc-hunt__facts { grid-template-columns: 1fr 1fr; }
 
   /* --------------------------- map / list pill --------------------------- */
