@@ -38,7 +38,6 @@ roots:
   idpr: https://services1.arcgis.com/CNPdEkvnGl65jCX8/ArcGIS/rest/services
   usfs: https://apps.fs.usda.gov/arcx/rest/services
   blm: https://gis.blm.gov/arcgis/rest/services
-  idaho: https://gis2.idaho.gov/arcgis/rest/services
   idl: https://services2.arcgis.com/1cvrwLhZRFh3okEF/ArcGIS/rest/services
 
 # CORS-enabled servers. 4.x needs no proxy for any of these; the legacy
@@ -462,11 +461,13 @@ layers:
     group: admin
     legacyBit: 2
     type: feature
-    # REPLACED: legacy pointed at gis2.idaho.gov/IdahoAGOL/Idaho_Counties, which
-    # did not respond during the 2026-08 audit. This IDFG-hosted layer carries
+    # REPLACED: legacy pointed at gis2.idaho.gov/IdahoAGOL/Idaho_Counties. That
+    # host resolves in DNS but never completes a TCP handshake, so requests hang
+    # until the browser gives up (~100s) rather than failing fast. NO fallbackUrl:
+    # falling back to a blackholed host turns a quick failure into a long silent
+    # one, which is worse than having no fallback. This IDFG-hosted layer carries
     # the same boundaries and is under IDFG's own control.
     url: ${roots.idfgAgol}/IdahoConservationPlannerAdministrativeBoundaries/FeatureServer/1
-    fallbackUrl: ${roots.idaho}/IdahoAGOL/Idaho_Counties/MapServer/1
     health: replaced
     outFields: ["*"]
     popup:
@@ -809,12 +810,14 @@ layers:
     group: reference
     legacyBit: 2
     type: feature
-    # REPLACED: gis2.idaho.gov/ADM/Campgrounds did not respond during the
-    # 2026-08 audit. USFS Recreation Opportunities covers the national forest
-    # campgrounds hunters actually use and is refreshed from the Recreation
-    # Portal. The IDPR service is kept as fallbackUrl if it returns.
+    # REPLACED: gis2.idaho.gov/ADM/Campgrounds is on a host that resolves in DNS
+    # but never completes a TCP handshake - requests hang ~100s instead of failing.
+    # NO fallbackUrl for that reason; see the counties layer. USFS Recreation
+    # Opportunities covers the national forest campgrounds hunters actually use.
+    # COVERAGE: national forest only - no state park, BLM or private campgrounds.
+    # IDFG still owns the AGOL item registration for the original statewide layer,
+    # so if that service is re-hosted it is the better primary.
     url: ${roots.usfs}/EDW/EDW_RecreationOpportunities_01/MapServer/0
-    fallbackUrl: ${roots.idaho}/ADM/Campgrounds/MapServer/0
     definitionExpression: >
       forestname IN ('Idaho Panhandle National Forests','Kootenai National Forest',
       'Nez Perce-Clearwater National Forest','Bitterroot National Forest',
