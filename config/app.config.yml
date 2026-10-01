@@ -38,7 +38,6 @@ roots:
   idpr: https://services1.arcgis.com/CNPdEkvnGl65jCX8/ArcGIS/rest/services
   usfs: https://apps.fs.usda.gov/arcx/rest/services
   blm: https://gis.blm.gov/arcgis/rest/services
-  idaho: https://gis2.idaho.gov/arcgis/rest/services
   idl: https://services2.arcgis.com/1cvrwLhZRFh3okEF/ArcGIS/rest/services
 
 # CORS-enabled servers. 4.x needs no proxy for any of these; the legacy
@@ -462,11 +461,13 @@ layers:
     group: admin
     legacyBit: 2
     type: feature
-    # REPLACED: legacy pointed at gis2.idaho.gov/IdahoAGOL/Idaho_Counties, which
-    # did not respond during the 2026-08 audit. This IDFG-hosted layer carries
+    # REPLACED: legacy pointed at gis2.idaho.gov/IdahoAGOL/Idaho_Counties. That
+    # host resolves in DNS but never completes a TCP handshake, so requests hang
+    # until the browser gives up (~100s) rather than failing fast. NO fallbackUrl:
+    # falling back to a blackholed host turns a quick failure into a long silent
+    # one, which is worse than having no fallback. This IDFG-hosted layer carries
     # the same boundaries and is under IDFG's own control.
     url: ${roots.idfgAgol}/IdahoConservationPlannerAdministrativeBoundaries/FeatureServer/1
-    fallbackUrl: ${roots.idaho}/IdahoAGOL/Idaho_Counties/MapServer/1
     health: replaced
     outFields: ["*"]
     popup:
@@ -809,12 +810,14 @@ layers:
     group: reference
     legacyBit: 2
     type: feature
-    # REPLACED: gis2.idaho.gov/ADM/Campgrounds did not respond during the
-    # 2026-08 audit. USFS Recreation Opportunities covers the national forest
-    # campgrounds hunters actually use and is refreshed from the Recreation
-    # Portal. The IDPR service is kept as fallbackUrl if it returns.
+    # REPLACED: gis2.idaho.gov/ADM/Campgrounds is on a host that resolves in DNS
+    # but never completes a TCP handshake - requests hang ~100s instead of failing.
+    # NO fallbackUrl for that reason; see the counties layer. USFS Recreation
+    # Opportunities covers the national forest campgrounds hunters actually use.
+    # COVERAGE: national forest only - no state park, BLM or private campgrounds.
+    # IDFG still owns the AGOL item registration for the original statewide layer,
+    # so if that service is re-hosted it is the better primary.
     url: ${roots.usfs}/EDW/EDW_RecreationOpportunities_01/MapServer/0
-    fallbackUrl: ${roots.idaho}/ADM/Campgrounds/MapServer/0
     definitionExpression: >
       forestname IN ('Idaho Panhandle National Forests','Kootenai National Forest',
       'Nez Perce-Clearwater National Forest','Bitterroot National Forest',
@@ -1059,277 +1062,147 @@ layers:
 # =============================================================================
 huntFinder:
   enabled: true
-  cacheTtlMinutes: 60
   pageSize: 50
-  # Results rail behaviour, VRBO-style.
+
+  # The finder reads the snapshot, not the map services.
+  #
+  # The five axes below all describe the hunt itself and are genuinely
+  # parallel. The old toggle mixed geography (units, elk zones), hunt class
+  # (controlled) and programme (Access Yes!) in one control, which asked the
+  # reader to choose between a noun and a place. Geography is now its own
+  # dimension and access programmes live in the click result, where they
+  # already were.
+  #
+  # None of these exist on the map services — method, ornament, season and tag
+  # are inventory attributes — so the finder had to move to the snapshot for
+  # them to be offered at all.
+  inventory:
+    url: /inventory.json
+
   results:
-    hoverHighlights: true      # hovering a card flashes the geometry on the map
-    clickZooms: true           # clicking a card zooms + opens the popup
-    syncToExtent: true         # "Search as I move the map" toggle
+    hoverHighlights: true
+    clickZooms: true
+    syncToExtent: true
     syncDefault: false
-    emptyMessage: No hunt areas match these filters. Try clearing a filter.
+    emptyMessage: No hunts match these filters. Try clearing one.
+    caveat: >
+      Some hunt areas are stored with more than one boundary version and the
+      current one is not yet confirmed. Check the boundary against the printed
+      seasons and rules before relying on it.
 
-  sources:
-    - id: controlled-hunts
-      title: Controlled Hunt Areas
-      kind: controlled
-      url: ${roots.idfgRest}/Hunting/MapServer/4
-      idField: AreaID
-      titleTemplate: "{BigGame} Hunt Area {HuntArea}"
-      subtitleTemplate: "Controlled hunt area"
-      # This service stores several rows per hunt area (2,162 rows for 574
-      # named areas): the same BigGame + HuntArea appears once per stored
-      # boundary version, each with its own AreaID and Year.
-      #
-      # Do NOT reintroduce Year here — it is not a hunt season.
-      #
-      # For a deduped source the identity fields ARE the projection: DISTINCT
-      # applies to the selected columns, and the server requires ORDER BY to
-      # reference only projected columns. AreaRank is carried along because it
-      # is constant per hunt area and gives the list its intended ordering.
-      outFields: [BigGame, HuntArea, AreaRank]
-      orderBy: [AreaRank, HuntArea]
-      dedupeBy: [BigGame, HuntArea, AreaRank]
-      detail:
-        fields:
-          - { label: Species, field: BigGame }
-          - { label: Hunt area, field: HuntArea }
-        links:
-          - { label: Controlled hunt seasons and rules, url: "https://idfg.idaho.gov/hunt/controlled" }
-      #
-      # OPEN QUESTION — pending confirmation from IDFG GIS (raised 2026-08-25).
-      #
-      # A named hunt area is stored more than once, each version with its own
-      # AreaID. Elk "3-2" is AreaID 1541 (AreaRank 125) and AreaID 2762
-      # (AreaRank 124). Nothing in the service identifies which boundary is
-      # current: FLAG is 1 on both, and FLAG=1 covers only Deer, Elk, Moose,
-      # Pronghorn and Turkey. Year is NOT a season and must not be used.
-      #
-      # Until the data owner confirms the rule, the highlight and the KML use
-      # whichever row the service returns first. That is arbitrary, so it is
-      # surfaced to the user via `caveat` below rather than presented as
-      # authoritative. When the rule is known, encode it here (an ORDER BY on
-      # the geometry lookup, or a filter on whatever field marks the current
-      # version) — no application code should need to change.
-      caveat: >
-        Some hunt areas are stored with more than one boundary version and the
-        current one is not yet confirmed. Check the boundary against the
-        printed seasons and rules before relying on it.
-      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/4/query?where=AreaID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz
-      facetFields:
-        species: BigGame
-      # Legacy pick lists grouped Rocky Mtn / California Sheep under "Bighorn
-      # Sheep" and displayed Furbearer as "Beaver". Preserved here as data.
-      speciesAliases:
-        Rocky Mtn Sheep: Bighorn Sheep
-        California Sheep: Bighorn Sheep
-        Furbearer: Beaver
-
-    - id: game-units
-      title: Game Management Units
-      kind: unit
-      url: ${roots.idfgRest}/Hunting/MapServer/3
-      idField: ID
-      titleTemplate: "Unit {NAME}"
-      subtitleTemplate: "General season unit · Elk Zone {Elk_Zone}"
-      outFields: [OBJECTID, ID, NAME, Elk_Zone, Name_sort, regular_deer_url, elkZone_url_1, gmu_wtd_url]
-      orderBy: [Name_sort]
-      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/3/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz
-      detail:
-        fields:
-          - { label: Unit, field: NAME }
-          - { label: Elk zone, field: Elk_Zone }
-        links:
-          - { label: Deer seasons for this unit, field: regular_deer_url }
-          - { label: Elk zone seasons, field: elkZone_url_1 }
-          - { label: White-tailed deer information, field: gmu_wtd_url }
-      facetFields:
-        unit: NAME
-        elkZone: Elk_Zone
-
-    - id: elk-zones
-      title: Elk Management Zones
-      kind: zone
-      url: ${roots.idfgRest}/Hunting/MapServer/1
-      idField: ID
-      titleTemplate: "{NAME} Elk Zone"
-      subtitleTemplate: Elk management zone
-      outFields: [OBJECTID, ID, NAME]
-      orderBy: [NAME]
-      kmlTemplate: ${roots.idfgRest}/Hunting/MapServer/1/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz
-      speciesScope: [Elk]
-      detail:
-        fields:
-          - { label: Zone, field: NAME }
-        content: >
-          Elk seasons are set by zone. Check the zone's season dates and tag
-          quotas before hunting.
-      facetFields:
-        elkZone: NAME
-
-    - id: waterfowl-areas
-      title: Waterfowl Hunt Areas
-      kind: waterfowl
-      url: ${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0
-      idField: huntID
-      titleTemplate: "{Area_Name}"
-      subtitleTemplate: Waterfowl hunt area
-      outFields: [OBJECTID, huntID, Area_Name, AreaNote, Acres]
-      orderBy: [Area_Name]
-      speciesScope: [Waterfowl]
-      kmlTemplate: ${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0/query?where=huntID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz
-      detail:
-        fields:
-          - { label: Area, field: Area_Name }
-          - { label: Note, field: AreaNote }
-          - { label: Acres, field: Acres, format: number }
-
-    - id: access-yes
-      title: Access Yes! Properties
-      kind: access
-      url: ${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0
-      idField: id
-      titleTemplate: "{name}"
-      subtitleTemplate: "Access Yes! · {generalarea} · {accesspublicacres} public acres"
-      outFields: ["*"]
-      orderBy: [name]
-      baseWhere: "bidid IS NOT NULL"
-      # Reuses the popup already written for the Access Yes! layer rather than
-      # repeating it. Without this the card would list raw columns — bidid,
-      # publishstatus, landnotify — because this source selects "*".
-      detailFromLayer: access-yes
-      facetFields:
-        region: primaryregion
-        accessOpportunity:
-          # facet value -> field that must be 'Y'/1 on the record
-          Big game: biggame
-          Upland game: uplandgame
-          Small game: smallgame
-          Waterfowl: waterfowl
-          Trapping: trapping
-          Fishing: fishing
-
-    - id: species-distribution
-      title: Species Distribution
-      kind: distribution
-      url: ${roots.idfgRest}/Species/Distribution/MapServer/3
-      idField: TaxonID
-      titleTemplate: "{Common_Name}"
-      subtitleTemplate: "Modeled range · {Season}"
-      outFields: [OBJECTID, TaxonID, Common_Name, Scientific_Name, Category, Season, Sqkm]
-      orderBy: [Common_Name]
-      kmlTemplate: ${roots.idfgRest}/Species/Distribution/MapServer/3/query?where=TaxonID+IN+({ids})&outFields=Common_Name&returnGeometry=true&outSR=4326&f=kmz
-      detail:
-        fields:
-          - { label: Species, field: Common_Name }
-          - { label: Scientific name, field: Scientific_Name }
-          - { label: Category, field: Category }
-          - { label: Season, field: Season }
-          - { label: Range, field: Sqkm, format: number, suffix: " sq km" }
-        content: >
-          Modeled distribution, not a guarantee of presence. Use it to narrow
-          where to scout, not to decide where animals will be.
-      facetFields:
-        species: Common_Name
-
-  # ---- The filter bar itself -------------------------------------------------
-  # `type` drives the control: multiselect | select | search | toggleGroup | extent
-  # `source: live` reads distinct values from the service named in `from`.
   facets:
     - id: species
       label: Species
+      field: species
       type: multiselect
       icon: deer
       placeholder: Any species
-      primary: true            # primary facets sit in the always-visible bar
-      source: live
-      from: controlled-hunts
-      field: BigGame
-      applyAliases: true
+      primary: true
       sortBy: label
 
-    - id: huntType
+    - id: huntClass
       label: Hunt type
+      field: type
       type: toggleGroup
       icon: tag
       primary: true
-      source: static
       options:
-        - { value: unit, label: General season units, sources: [game-units] }
-        - { value: controlled, label: Controlled hunts, sources: [controlled-hunts] }
-        - { value: zone, label: Elk zones, sources: [elk-zones] }
-        - { value: waterfowl, label: Waterfowl areas, sources: [waterfowl-areas] }
-        - { value: access, label: Access Yes! properties, sources: [access-yes] }
-        - { value: distribution, label: Species distribution, sources: [species-distribution] }
+        - { value: general, label: General season }
+        - { value: controlled, label: Controlled hunt }
+
+    # Sharper than weapon and currently offered nowhere: it splits the
+    # inventory almost in thirds.
+    - id: ornament
+      label: Sex / antler
+      field: ornament
+      type: multiselect
+      icon: deer
+      placeholder: Any restriction
+      primary: true
+      sortBy: label
+
+    # When someone can actually go is the first question of a trip, and it is
+    # the axis the whole reframe was built around. Matching is by month
+    # rather than an exact range: a hunt counts if its season touches the
+    # month at all, which is the question people ask out loud.
+    - id: month
+      label: When
+      field: months
+      multiValue: true
+      type: multiselect
+      icon: calendar
+      placeholder: Any month
+      primary: true
+      sortBy: value
+      labels:
+        "1": January
+        "2": February
+        "3": March
+        "4": April
+        "5": May
+        "6": June
+        "7": July
+        "8": August
+        "9": September
+        "10": October
+        "11": November
+        "12": December
 
     - id: unit
       label: Unit
+      field: unitsReferenced
+      multiValue: true
       type: multiselect
       icon: hash
       placeholder: Any unit
       primary: true
-      source: live
-      from: game-units
-      field: NAME
-      sortBy: natural          # 1, 2, 4A, 4B, 10, 10A — not lexicographic
+      sortBy: natural
 
-    - id: elkZone
-      label: Elk zone
+    # 614 of 1,052 hunts are "Any Weapon", so this filters little until someone
+    # picks archery — which is why it is not a primary facet.
+    - id: weapon
+      label: Weapon
+      field: method
       type: multiselect
-      icon: mountain
-      placeholder: Any zone
-      source: live
-      from: elk-zones
-      field: NAME
+      icon: crosshair
+      placeholder: Any weapon
       sortBy: label
 
-    - id: region
-      label: IDFG region
+    - id: tagType
+      label: Tag
+      field: tagArea
       type: multiselect
-      icon: map
-      placeholder: Any region
-      primary: true
-      source: live
-      from: regions-lookup
-      field: NAME
+      icon: tag
+      placeholder: Any tag
       sortBy: label
-      lookup:
-        url: ${roots.idfgAgol}/Administrative_Regions/FeatureServer/0
-        field: NAME
-      # Region is spatial for most sources: intersect the region geometry
-      # rather than matching an attribute.
-      spatial: true
 
-    - id: accessOpportunity
-      label: Allowed activity
+    - id: season
+      label: Season
+      field: season
+      type: multiselect
+      icon: calendar
+      placeholder: Any season
+      sortBy: label
+
+    - id: access
+      label: Access
+      field: accessGrade
       type: multiselect
       icon: check
-      placeholder: Any activity
-      source: static
-      appliesTo: [access-yes]
-      options:
-        - { value: Big game, label: Big game }
-        - { value: Upland game, label: Upland game }
-        - { value: Small game, label: Small game }
-        - { value: Waterfowl, label: Waterfowl }
-        - { value: Trapping, label: Trapping }
-        - { value: Fishing, label: Fishing }
-
+      placeholder: Any access
+      labels:
+        open: Open access
+        limited: Limited access
+        permission: Permission required
+        rule: Special rule
 
     - id: keyword
       label: Search
       type: search
       icon: search
       primary: true
-      placeholder: Unit, zone, hunt area, or property name
-      # Fields searched per source, LIKE '%term%'
-      searchFields:
-        controlled-hunts: [HuntArea, BigGame]
-        game-units: [NAME]
-        elk-zones: [NAME]
-        waterfowl-areas: [Area_Name]
-        access-yes: [name, generalarea, description]
-        species-distribution: [Common_Name, Scientific_Name]
+      placeholder: Tag, hunt number, unit or area
+      searchFields: [tag, area, season, tagArea]
 
 # =============================================================================
 #  HIGHLIGHT  —  the legacy "Highlight a Hunt Area" tool
@@ -1340,6 +1213,49 @@ huntFinder:
 #  Hunt Planner search results keep resolving.
 # =============================================================================
 highlight:
+  # Pick lists for the legacy "Highlight a Hunt Area" tool. These used to ride
+  # on huntFinder.sources; the finder now reads the snapshot, so they live with
+  # the tool that actually uses them.
+  pickLists:
+    - id: game-units
+      title: Game Management Units
+      url: "${roots.idfgRest}/Hunting/MapServer/3"
+      idField: ID
+      labelField: NAME
+      sortBy: natural
+      outFields: [ID, NAME, Name_sort]
+      orderBy: [Name_sort]
+      titleTemplate: "Unit {NAME}"
+      kmlTemplate: "${roots.idfgRest}/Hunting/MapServer/3/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz"
+    - id: elk-zones
+      title: Elk Management Zones
+      url: "${roots.idfgRest}/Hunting/MapServer/1"
+      idField: ID
+      labelField: NAME
+      outFields: [ID, NAME]
+      orderBy: [NAME]
+      titleTemplate: "{NAME} Elk Zone"
+      kmlTemplate: "${roots.idfgRest}/Hunting/MapServer/1/query?where=ID+IN+({ids})&outFields=NAME&returnGeometry=true&outSR=4326&f=kmz"
+    - id: controlled-hunts
+      title: Controlled Hunt Areas
+      url: "${roots.idfgRest}/Hunting/MapServer/4"
+      idField: AreaID
+      labelField: HuntArea
+      sortBy: natural
+      outFields: [AreaID, HuntArea, BigGame, AreaRank]
+      orderBy: [AreaRank, HuntArea]
+      titleTemplate: "{BigGame} Hunt Area {HuntArea}"
+      kmlTemplate: "${roots.idfgRest}/Hunting/MapServer/4/query?where=AreaID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz"
+    - id: waterfowl-areas
+      title: Waterfowl Hunt Areas
+      url: "${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0"
+      idField: huntID
+      labelField: Area_Name
+      outFields: [huntID, Area_Name]
+      orderBy: [Area_Name]
+      titleTemplate: "{Area_Name}"
+      kmlTemplate: "${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0/query?where=huntID+IN+({ids})&outFields=*&returnGeometry=true&outSR=4326&f=kmz"
+
   symbol:
     fill: "rgba(154, 32, 219, 0.10)"
     outline: "#9a20db"
@@ -1364,6 +1280,146 @@ highlight:
     5: { url: "${roots.idfgRest}/Hunting/MapServer/4", idField: AreaID,  label: Controlled Hunts }
     6: { url: "${roots.idfgAgol}/WaterfowlHuntAreas/FeatureServer/0", idField: huntID, label: Waterfowl Hunt Areas }
     7: { url: "${roots.idfgRest}/Species/Distribution/MapServer/3", idField: TaxonID, label: Species Distribution }
+
+# =============================================================================
+#  CLICK QUERY  —  what happens when someone clicks the map
+# =============================================================================
+#  A click is a location question, not a feature lookup. The default SDK popup
+#  answers "what is this polygon" and paginates when layers overlap; this
+#  answers "what can I hunt here, and can I get on it".
+# =============================================================================
+clickQuery:
+  enabled: true
+  # Click tolerance in screen pixels, so a fingertip on a phone still resolves.
+  tolerancePx: 8
+
+  # Zoom decides how precise an answer is honest. Naming a unit is defensible
+  # statewide; naming the parcel under the cursor is not.
+  granularity:
+    localBelowScale: 200000
+    regionalBelowScale: 3000000
+
+  # Context layers answer "where am I". Each is a point-intersect query.
+  context:
+    - { id: unit,     label: Unit,      url: "${roots.idfgRest}/Hunting/MapServer/3", fields: [NAME, Elk_Zone], display: NAME }
+    - { id: elkZone,  label: Elk zone,  url: "${roots.idfgRest}/Hunting/MapServer/1", fields: [NAME], display: NAME }
+    - { id: region,   label: Region,    url: "${roots.idfgAgol}/Administrative_Regions/FeatureServer/0", fields: [NAME], display: NAME }
+    - { id: huntArea, label: Hunt area, url: "${roots.idfgRest}/Hunting/MapServer/4", fields: [AreaID, BigGame, HuntArea], display: HuntArea, multiple: true }
+
+  # Land ownership under the cursor.
+  #
+  # IMPORTANT — this is BLM's *national, generalized* Surface Management Agency
+  # layer. It is a good regional picture and it is NOT a title record: parcel
+  # edges are approximate, it lags real transactions, and it knows nothing
+  # about access agreements. The UI must attribute it and hedge it rather than
+  # state ownership as fact. See `agreements` below, which corrects the most
+  # damaging case.
+  ownership:
+    url: "https://gis.blm.gov/arcgis/rest/services/lands/BLM_Natl_SMA_Cached_without_PriUnk/MapServer/1"
+    fields: [ADMIN_AGENCY_CODE, ADMIN_UNIT_NAME, ADMIN_DEPT_CODE]
+    agencyField: ADMIN_AGENCY_CODE
+    nameField: ADMIN_UNIT_NAME
+    source: BLM Surface Management Agency (national, generalized)
+    caveat: >
+      Generalized regional data, not a title record or a survey. Boundaries are
+      approximate and it does not reflect access agreements. Verify before you hunt.
+    # BLM's codes are terse; these are what a person would say.
+    labels:
+      PVT: Private land
+      BLM: BLM
+      FS: US Forest Service
+      NPS: National Park Service
+      FWS: US Fish and Wildlife Service
+      STL: State of Idaho
+      STP: State park
+      DOD: Department of Defense
+      BOR: Bureau of Reclamation
+      TRIB: Tribal land
+      OTHF: Other federal
+
+  # ---------------------------------------------------------------------
+  # ACCESS
+  #
+  # Every access programme IDFG or its partners maintain, queried together
+  # both AT the clicked point and WITHIN `proximityMeters` of it, because
+  # "there is walk-in access a quarter mile from here" is often more useful
+  # than anything true of the pixel under the cursor.
+  #
+  # These OVERRIDE a bare ownership reading. An Access Yes! property is
+  # private land IDFG has already secured public access on; reporting it as
+  # "private, permission required" is wrong and hides the most useful thing
+  # on the map.
+  #
+  # None of it is authoritative. See `caveat` — the UI states it every time.
+  # ---------------------------------------------------------------------
+  access:
+    caveat: >
+      Access information is assembled from the best available data and is a
+      guide, not a guarantee. Boundaries are approximate, agreements change
+      during the season, and postings on the ground take precedence over
+      anything shown here. Check signs and current rules before you hunt.
+    proximityMeters: 8000
+    sources:
+      - id: access-yes
+        label: Access Yes!
+        url: "${roots.idfgRest}/Hosted/Access_Yes_2026_public/FeatureServer/0"
+        where: "bidid IS NOT NULL"
+        fields: [name, generalarea, biggame, uplandgame, waterfowl, fishing, landnotify, accessbegin, accessend, contactname]
+        nameField: name
+        notifyField: landnotify
+      - id: endowment-lands
+        label: Endowment land
+        url: "${roots.idl}/IDL_Public_Access/FeatureServer/0"
+        fields: ["*"]
+        nameField: Access
+      - id: large-tracts-0
+        label: Large tract agreement
+        url: "${roots.idfgRest}/Access/Large_Tracts_Access_Agreements/MapServer/0"
+        fields: ["*"]
+        nameField: Name
+      - id: large-tracts-1
+        label: Large tract agreement
+        url: "${roots.idfgRest}/Access/Large_Tracts_Access_Agreements/MapServer/1"
+        fields: ["*"]
+        nameField: Name
+      - id: forest-legacy
+        label: Forest Legacy
+        url: "${roots.idfgRest}/Access/Access/MapServer/4"
+        fields: ["*"]
+        nameField: Name
+      - id: other-access
+        label: Other access programme
+        url: "${roots.idfgRest}/Access/Access/MapServer/5"
+        fields: ["*"]
+        nameField: Name
+      - id: wma
+        label: Wildlife Management Area
+        url: "${roots.idfgAgol}/WildlifeManagementAreas/FeatureServer/0"
+        fields: ["*"]
+        nameField: Name
+
+  # Two link patterns on the existing Hunt Planner, both verified live. They
+  # are NOT the same thing, and labelling them as if they were would mislead:
+  #
+  #   /hunt/{id}     the opportunity — this tag in THIS area.
+  #                  78277 -> "Hunt Area 76-1X Elk Controlled Hunt 2256"
+  #   /tag/{tagId}   the tag across every area it is valid in.
+  #                  31234 -> "Elk Controlled Hunt 2256"
+  #
+  # A bogus id returns a page titled "Hunt not found" rather than a 404, so a
+  # link checker has to read the title, not the status code.
+  huntDetailUrl: "https://idfg.idaho.gov/ifwis/huntplanner/hunt/{id}"
+  tagDetailUrl: "https://idfg.idaho.gov/ifwis/huntplanner/tag/{tagId}"
+  rulesUrl: "https://idfg.idaho.gov/rules"
+
+  # Hunts are matched from the snapshot, not the network.
+  inventory:
+    url: /inventory.json
+    # A general hunt references units in prose; a controlled hunt resolves by
+    # AreaID. Both paths are needed — see docs/BRAINSTORM-2026-08.md.
+    matchGeneralByUnit: true
+    matchControlledByAreaId: true
+    maxHunts: 40
 
 # =============================================================================
 #  TOOLS
@@ -1492,18 +1548,48 @@ tools:
 # =============================================================================
 ui:
   theme:
-    # Legacy "Blaze Orange" IDFG palette, carried across.
-    primary: "#4a5231"
-    primaryDark: "#333a20"
-    accent: "#ff7200"
-    accentDark: "#d95f00"
-    surface: "#ffffff"
-    surfaceAlt: "#f5f5f0"
-    border: "#d9d9cc"
-    text: "#1f2119"
-    textMuted: "#5f6357"
-    danger: "#c1121f"
-    focusRing: "#ff7200"
+    # Palette taken from the IDFG Technical Services Bureau Prospectus (2024):
+    # deep navy blocks, gold keylines, pale blue-grey panels.
+    primary: "#0E3A5D"        # navy — header, tool rail, primary chrome
+    primaryDark: "#08283F"
+    primaryMid: "#2F6183"     # the slate blue of the Conservation Data Lifecycle ring
+    accent: "#E9B94B"         # gold — keylines, active states, fills
+    accentDark: "#C9971F"
+    accentInk: "#8A6410"      # gold dark enough to be TEXT on a light surface
+    accentBorder: "#8A6410"   # active control outlines — gold fails 3:1 as a border
+    surface: "#FFFFFF"
+    surfaceAlt: "#EDF1F6"     # pale blue-grey panel
+    panel: "#DCE3EC"
+    border: "#C9D4E0"         # decorative separators only
+    borderStrong: "#6E8598"   # anything that OUTLINES A CONTROL — WCAG 1.4.11
+    text: "#14202B"
+    textMuted: "#55636F"
+    danger: "#B3261E"
+    dangerInk: "#FFFFFF"      # text that sits on a danger fill
+    focusRing: "#8A6410"
+    focusRingInverse: "#F2CE79"   # focus on navy chrome, where the dark ring vanishes
+  # Dark palette. Declared here rather than in the stylesheet so the contrast
+  # checker can audit both themes from one source — see npm run a11y:contrast.
+  themeDark:
+    primary: "#12283C"
+    primaryDark: "#0B1B29"
+    primaryMid: "#4E86AC"
+    accent: "#E9B94B"
+    accentDark: "#F0CB77"
+    accentInk: "#F2CE79"      # on a dark ground the light gold IS the text colour
+    accentBorder: "#E9B94B"
+    surface: "#101C26"
+    surfaceAlt: "#16242F"
+    panel: "#1B2C39"
+    border: "#3A4C5B"
+    borderStrong: "#6B8296"
+    text: "#E9EFF4"
+    textMuted: "#A8B8C6"
+    danger: "#F2887E"
+    dangerInk: "#2A0D0A"      # the dark-mode danger is a light red; white on it fails
+    focusRing: "#F2CE79"
+    focusRingInverse: "#F2CE79"
+
   layout:
     filterBarHeight: 68
     resultsRailWidth: 400

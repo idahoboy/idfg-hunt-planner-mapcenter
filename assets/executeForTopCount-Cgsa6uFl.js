@@ -1,1 +1,0 @@
-import{eO as n,f0 as c}from"./index-9_ETgfbS.js";import{c as e}from"./queryTopFeatures-BvsFVsJ_.js";async function u(o,t,r){const a=n(o);return(await e(a,c.from(t),{...r})).data.count}export{u as executeForTopCount};
