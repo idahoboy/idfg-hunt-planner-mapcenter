@@ -1000,14 +1000,22 @@ layers:
     group: wildlife
     legacyBit: 32
     type: feature
-    url: ${roots.esriLive}/USA_Wildfires_v1/FeatureServer/0
-    health: verified
+    # REPLACED 2026-10-01: USA_Wildfires_v1 still answers but now publishes no
+    # layers at all — layerId 0 returns "not found". Found by the first service
+    # snapshot, which is the entire point of taking them. NIFC WFIGS incident
+    # locations is the live equivalent and is already a configured root.
+    url: ${roots.nifc}/WFIGS_Incident_Locations_Current/FeatureServer/0
+    health: replaced
     refreshIntervalMinutes: 15
     outFields: ["*"]
     popup:
       title: "{IncidentName} Fire"
       fields:
-        - { label: Acres, field: DailyAcres, format: number }
+        # DailyAcres does not exist on WFIGS incident locations. DiscoveryAcres
+        # is the nearest equivalent and is frequently null, which the popup
+        # builder already handles by omitting the row rather than printing a
+        # blank one.
+        - { label: Acres at discovery, field: DiscoveryAcres, format: number }
         - { label: Contained, field: PercentContained, suffix: "%" }
         - { label: Discovered, field: FireDiscoveryDateTime, format: date }
         - { label: Cause, field: FireCauseGeneral }

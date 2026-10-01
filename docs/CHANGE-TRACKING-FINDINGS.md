@@ -84,3 +84,75 @@ nobody noticed, not an inventory change.
 
 Step 2 is the one with no prior art here and the most value. Step 1 is a
 prerequisite and takes minutes.
+
+
+---
+
+## Built: steps 1 and 2
+
+```bash
+npm run snapshot            # both captures
+npm run snapshot:services   # services only
+```
+
+**Archive** — `snapshots/`, committed, gzipped. An inventory capture is 27 KB
+compressed against 416 KB raw; a service capture is 7 KB. A year of weekly
+captures is a few megabytes, which is a reasonable price for being able to
+answer "when did this change".
+
+Filenames carry a content hash (`2026-10-01-inventory-4ca1ab8d07.json.gz`) so
+two differing captures on the same day cannot overwrite each other, and two
+identical ones resolve to the same name. `index.json` records every run,
+including the ones where nothing moved — knowing a thing was checked and found
+unchanged is itself a fact worth keeping.
+
+**Service capture** — 53 endpoints: every enabled layer and its fallback, every
+basemap, the click context and ownership layers, all seven access programmes,
+the highlight pick lists, the print service and the geocoder. Per endpoint:
+reachability, response time, HTTP status, layer name, geometry type, sorted
+field names, sublayers, `maxRecordCount`, and a `shapeHash` over the structural
+parts. Comparing two captures is then one hash comparison per endpoint, with
+the detail available when it differs.
+
+`--counts` also records row counts. Opt-in, because it doubles the requests and
+counts drift for ordinary reasons.
+
+### It found something on the first run
+
+`USA_Wildfires_v1/FeatureServer/0` — the Active Wildfire Incidents layer —
+answers HTTP 200 but publishes **no layers at all**; layer 0 returns "not
+found". Repointed to NIFC `WFIGS_Incident_Locations_Current`, whose schema is
+close but not identical: `DailyAcres` does not exist there, so the popup now
+reads `DiscoveryAcres`.
+
+That is the whole argument for this feature, demonstrated on day one by the
+first capture ever taken.
+
+### Three defects fixed while building it
+
+- The capture reported that failure with a **blank reason**. ArcGIS left
+  `message` empty and put the sentence in `details`; a blank failure reason is
+  worse than no capture.
+- `validate-config --probe` was still enumerating `huntFinder.sources` and
+  `highlight.queryLayers`, both renamed weeks ago. It had been silently
+  probing nothing for those sections.
+- `npm run snapshot` chained the two steps with `&&`. `build-inventory` exits 3
+  when a hunt cannot be mapped — a data-quality signal, not a failure — so the
+  service capture was skipped on exactly the days something was wrong.
+
+### Also visible against August
+
+| | 27 Aug | 1 Oct |
+|---|---:|---:|
+| Hunts published | 1,052 | 795 |
+| Unmappable | 2 | **1** |
+| Ambiguous boundaries | 20 | **18** |
+
+The data-quality numbers improved on their own, which is worth knowing and was
+previously unknowable.
+
+## Next: the differ and the report
+
+`diff-snapshots.mjs` comparing any two archived captures, normalised the same
+way, classifying inventory changes as expired · withdrawn · added · changed,
+and service changes as gained · lost · reshaped. Then a page to read it on.

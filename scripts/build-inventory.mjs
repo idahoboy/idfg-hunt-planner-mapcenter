@@ -18,6 +18,7 @@
  */
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
+import { archive } from './lib/archive.mjs';
 
 const HUNT_API = 'https://idfg.idaho.gov/ifwis/huntplanner/api/1.1/list/';
 const HUNT_GIS =
@@ -421,7 +422,16 @@ async function main() {
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, json, 'utf8');
 
+  // Keep every capture. Without history there is nothing to diff, and the
+  // live API publishes only open opportunities — once a season closes, what
+  // it contained is gone unless it was archived.
+  const archived = await archive('inventory', snapshot);
+
   console.log(`\nWrote ${outPath} (${Math.round(Buffer.byteLength(json) / 1024)} KB)`);
+  console.log(
+    `Archived snapshots/${archived.file}` +
+      (archived.unchanged ? '  (identical to previous — not rewritten)' : ''),
+  );
   console.log('-------------------------------');
   console.log(`hunts                    ${hunts.length}`);
   console.log(`  controlled             ${snapshot.counts.controlled}`);

@@ -18,7 +18,9 @@
     "deploy:pages": "bash scripts/deploy-pages.sh",
     "build:inventory": "node scripts/build-inventory.mjs",
     "a11y:contrast": "node scripts/check-contrast.mjs",
-    "verify": "npm run config:validate && npm run a11y:contrast && tsc -b --noEmit"
+    "verify": "npm run config:validate && npm run a11y:contrast && tsc -b --noEmit",
+    "snapshot:services": "node scripts/snapshot-services.mjs",
+    "snapshot": "bash scripts/snapshot.sh"
   },
   "dependencies": {
     "@arcgis/core": "^4.32.0",

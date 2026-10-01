@@ -199,10 +199,13 @@ for (const basemap of resolved.basemaps?.items ?? []) {
   addTarget(`basemap:${basemap.id}`, basemap.url);
   addTarget(`basemap:${basemap.id} (ref)`, basemap.referenceUrl);
 }
-for (const source of resolved.huntFinder?.sources ?? []) addTarget(`finder:${source.id}`, source.url);
-for (const [key, entry] of Object.entries(resolved.highlight?.queryLayers ?? {})) {
-  addTarget(`highlight:lyr=${key}`, entry.url);
-}
+// The finder reads the snapshot and has no services of its own. These are the
+// sections that still reach the network; they were renamed, and this list went
+// on silently probing keys that no longer exist.
+for (const pick of resolved.highlight?.pickLists ?? []) addTarget(`highlight:${pick.id}`, pick.url);
+for (const ctx of resolved.clickQuery?.context ?? []) addTarget(`click:${ctx.id}`, ctx.url);
+addTarget('click:ownership', resolved.clickQuery?.ownership?.url);
+for (const src of resolved.clickQuery?.access?.sources ?? []) addTarget(`access:${src.id}`, src.url);
 addTarget('print service', resolved.tools?.print?.serviceUrl);
 
 console.log(`\n${C.bold}Probing ${targets.size} endpoints...${C.reset}`);
