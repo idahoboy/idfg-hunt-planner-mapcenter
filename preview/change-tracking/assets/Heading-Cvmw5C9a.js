@@ -1,0 +1,1 @@
+import{ag as s,ah as l,ai as o,aj as c}from"./main-Jkdtt3h5.js";function h({level:a,class:e,...t},i){const n=r(a);return s(`h${n}`,{...t,"aria-level":String(n),class:l(o.heading,e),role:"heading"},i)}function r(a){return c(Math.ceil(a),1,6)}function f(a,e=1){return r(a+e)}export{f as l,h as s};
