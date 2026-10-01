@@ -97,7 +97,16 @@ export default defineConfig({
     chunkSizeWarningLimit: 6144,
     // Vite's default vendor splitting handles the SDK correctly. Hand-written
     // manualChunks produced circular vendor <-> react <-> arcgis chunks.
-    rollupOptions: {},
+    //
+    // Two entry points. changes.html imports nothing from the map, so Rollup
+    // gives it its own graph: a reader opening the change report downloads
+    // React and two tables, not a 4MB mapping SDK.
+    rollupOptions: {
+      input: {
+        main: resolve(process.cwd(), 'index.html'),
+        changes: resolve(process.cwd(), 'changes.html'),
+      },
+    },
   },
   server: {
     host: '0.0.0.0',

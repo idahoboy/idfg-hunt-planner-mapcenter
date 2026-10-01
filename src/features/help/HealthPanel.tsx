@@ -1,6 +1,7 @@
 import { useAppStore } from '@/state/store';
 import { useConfig } from '@/config/ConfigContext';
 import { Icon } from '@/components/Icon';
+import { appUrl } from '@/lib/appUrl';
 
 const STATUS_COPY = {
   ok: { label: 'Responding', tone: 'ok' },
@@ -60,6 +61,14 @@ export function HealthPanel(): React.ReactElement {
           );
         })}
       </ul>
+
+      {/* This panel says what is true now. The report says what has moved since
+          the last capture, which is the part that explains why. */}
+      <p className="hp-panel__note">
+        <a href={appUrl('changes.html')}>Data changes report</a> — hunts added,
+        withdrawn and amended, and services that broke or changed shape between
+        captures.
+      </p>
     </div>
   );
 }

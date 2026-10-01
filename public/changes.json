@@ -1,0 +1,45 @@
+{
+  "generated": "2026-10-01T21:39:14.228Z",
+  "archive": [
+    {
+      "kind": "inventory",
+      "at": "2026-10-01T21:21:45.867Z",
+      "hash": "4ca1ab8d075ae6a7",
+      "file": "2026-10-01-inventory-4ca1ab8d075ae6a7.json.gz",
+      "unchanged": false,
+      "bytes": 426330
+    },
+    {
+      "kind": "services",
+      "at": "2026-10-01T21:21:48.336Z",
+      "hash": "a7fc30c7867bcc93",
+      "file": "2026-10-01-services-a7fc30c7867bcc93.json.gz",
+      "unchanged": false,
+      "bytes": 36398
+    }
+  ],
+  "comparisons": {
+    "inventory": {
+      "unavailable": "baseline only — one inventory capture (2026-10-01). The first comparison is available after the next capture that differs.",
+      "baseline": {
+        "kind": "inventory",
+        "at": "2026-10-01T21:21:45.867Z",
+        "hash": "4ca1ab8d075ae6a7",
+        "file": "2026-10-01-inventory-4ca1ab8d075ae6a7.json.gz",
+        "unchanged": false,
+        "bytes": 426330
+      }
+    },
+    "services": {
+      "unavailable": "baseline only — one services capture (2026-10-01). The first comparison is available after the next capture that differs.",
+      "baseline": {
+        "kind": "services",
+        "at": "2026-10-01T21:21:48.336Z",
+        "hash": "a7fc30c7867bcc93",
+        "file": "2026-10-01-services-a7fc30c7867bcc93.json.gz",
+        "unchanged": false,
+        "bytes": 36398
+      }
+    }
+  }
+}

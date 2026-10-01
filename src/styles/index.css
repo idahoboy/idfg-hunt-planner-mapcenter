@@ -401,6 +401,11 @@ body {
 /* ============================ panels ============================ */
 .hp-panel { display: flex; flex-direction: column; gap: 14px; }
 .hp-panel__intro, .hp-panel__hint { margin: 0; font-size: 13px; color: var(--hp-text-muted); }
+.hp-panel__note {
+  margin: 0; font-size: 13px; color: var(--hp-text-muted);
+  border-top: 1px solid var(--hp-border); padding-top: 10px;
+}
+.hp-panel__note a { color: var(--hp-accent-ink); font-weight: 600; }
 .hp-panel__section { display: flex; flex-direction: column; gap: 10px; }
 .hp-panel__heading { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--hp-text-muted); }
 .hp-panel__actions { display: flex; gap: 8px; flex-wrap: wrap; }

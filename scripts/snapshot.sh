@@ -18,9 +18,21 @@ echo
 node scripts/snapshot-services.mjs
 svc=$?
 
+# Compare against the previous capture and publish the report. Runs even when
+# a service is down: a capture of a degraded system is exactly the capture whose
+# comparison somebody needs to read.
+echo
+node scripts/diff-snapshots.mjs
+dif=$?
+
 # Surface the inventory's data-quality signal without hiding it.
 if [ "$rc" -eq 3 ]; then
   echo
   echo "note: the inventory reported hunts it could not map (exit 3)."
 fi
+
+# The differ exits 4 when an endpoint that used to answer no longer does. That
+# outranks everything else here, because it is the one result that needs a
+# person today.
+if [ "$dif" -eq 4 ]; then exit 4; fi
 exit "$svc"

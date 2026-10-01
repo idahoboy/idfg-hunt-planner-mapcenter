@@ -151,8 +151,107 @@ first capture ever taken.
 The data-quality numbers improved on their own, which is worth knowing and was
 previously unknowable.
 
-## Next: the differ and the report
+---
 
-`diff-snapshots.mjs` comparing any two archived captures, normalised the same
-way, classifying inventory changes as expired · withdrawn · added · changed,
-and service changes as gained · lost · reshaped. Then a page to read it on.
+## Built: steps 3 and 4
+
+```bash
+npm run diff                                   # last two captures of each kind
+node scripts/diff-snapshots.mjs --kind services
+node scripts/diff-snapshots.mjs --from 2026-08-27 --to 2026-10-01
+```
+
+`npm run snapshot` now ends with a diff, so one command captures, compares and
+publishes.
+
+### What counts as a change
+
+**Hunts** are keyed by hunt id and classified four ways. The split that
+matters is between the two kinds of disappearance:
+
+| | |
+|---|---|
+| **added** | not in the earlier capture |
+| **expired** | gone, and its close date had passed — ordinary |
+| **withdrawn** | gone **while its season was still ahead of it** — news |
+| **changed** | same hunt, different field |
+
+The reference date for expiry is the later capture's own date, not today's, so
+an old comparison does not silently reclassify itself as the archive ages.
+
+A changed hunt lists every field that moved, and each field is marked material
+or not. Material covers dates, permits, weapon, ornamentation, area, boundary,
+restrictions and access grade. Not material covers the names and codes —
+wording that changes often and changes nothing. The table defaults to material
+only, because the alternative is a reader scrolling past forty renames to find
+the one season that moved.
+
+Above 25% removal the report stops listing withdrawals and says so: that is a
+season rollover, and reading 257 rows as individual decisions would be wrong.
+The 1,052 → 795 drop between August and October is exactly this case.
+
+Also diffed: the published vocabulary (a new weapon or ornamentation value is
+how a filter quietly empties), the headline counts, and the two data-quality
+measures.
+
+**Services** are keyed by URL and classified five ways, each meaning exactly
+one thing:
+
+| | |
+|---|---|
+| **gained / lost** | the configuration watches more, or fewer, endpoints |
+| **broke / recovered** | reachability changed; the endpoint set did not |
+| **reshaped** | answered both times, and answered differently |
+
+A reshaped service is flagged for attention when a field disappeared or the
+geometry type changed, because a missing field is what empties a popup without
+raising an error anywhere. Response time is deliberately *not* a change: it
+varies by tens of milliseconds per run and would bury everything above.
+
+### The rule the differ enforces
+
+**A capture is only ever compared with another capture.** The differ reads from
+`snapshots/` and has no code path to a live service or to
+`public/inventory.json`. This is the design consequence of the 358 phantom
+permit changes: that comparison was snapshot-against-raw-API, and every
+difference was an artefact of the two sides representing an unlimited tag
+differently — `null` on one side, `999999` on the other. Both sides go through
+the same writer, or the diff measures the normalisation instead of the data.
+
+### Exit codes
+
+`0` nothing or only ordinary changes · `4` an endpoint that used to answer no
+longer does. Four propagates out of `npm run snapshot`, outranking the
+inventory's exit 3, because a dead dependency is the one result that needs a
+person the same day.
+
+### The report page
+
+`/changes.html` — a second Vite entry point. It imports nothing from the map,
+so Rollup gives it its own graph: **216 KB total, with zero references to
+`esri`**, against 2.2 MB for the map's entry before its lazy chunks. Somebody
+reading two tables does not download a mapping SDK.
+
+It reads `changes.json`, which the differ publishes beside it. Summary tiles,
+then collapsible sections, then the full archive timeline, then a plain
+statement of how the numbers were produced. The changed-hunts table has a
+material-only toggle and a text filter; long lists cap at 25 rows behind a
+"show the remaining N". Native `<details>`, real tables with captions and
+scoped headers, light and dark, legible at 375px, and printable.
+
+Its own stylesheet, not the app's: line 1 of `src/styles/index.css` imports the
+ArcGIS theme, which would have dragged ~100 KB of CSS and the SDK's asset graph
+onto a page that draws no map. The colour tokens are duplicated, and every pair
+it uses is one `check-contrast.mjs` already validates.
+
+Linked from the service-health panel in the app — that panel says what is true
+now, this page says what moved.
+
+### Today it has nothing to compare
+
+One capture of each kind exists, so the page says so plainly and names the
+baseline on file. The first real comparison appears after the next capture that
+differs. The classification logic was exercised against a synthetic later
+capture covering every branch — expiry, withdrawal, addition, material and
+cosmetic change, new vocabulary, a broken endpoint, three reshapes, a gain and
+a loss — and all of them render.

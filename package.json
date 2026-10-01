@@ -20,6 +20,7 @@
     "a11y:contrast": "node scripts/check-contrast.mjs",
     "verify": "npm run config:validate && npm run a11y:contrast && tsc -b --noEmit",
     "snapshot:services": "node scripts/snapshot-services.mjs",
+    "diff": "node scripts/diff-snapshots.mjs",
     "snapshot": "bash scripts/snapshot.sh"
   },
   "dependencies": {

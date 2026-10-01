@@ -1,5 +1,5 @@
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
-import { gzipSync } from 'node:zlib';
+import { gzipSync, gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 
@@ -87,4 +87,46 @@ export async function filesOnDisk() {
   } catch {
     return [];
   }
+}
+
+/** Reads one archived capture back. The only supported source for a diff. */
+export async function readCapture(file) {
+  const path = file.includes('/') ? file : join(SNAPSHOT_DIR, file);
+  return JSON.parse(gunzipSync(await readFile(path)).toString('utf8'));
+}
+
+/**
+ * The most recent captures of a kind that actually differ from each other,
+ * newest first.
+ *
+ * Deduplicating by hash is what makes "compare the last two" mean something on
+ * a corpus that mostly does not move: without it, a weekly capture of an
+ * unchanged inventory would compare a file against itself and report nothing
+ * changed between two dates that genuinely had no capture between them.
+ */
+export async function latestDistinct(kind, n = 2) {
+  const manifest = await readManifest();
+  const out = [];
+  const seen = new Set();
+  for (const c of [...manifest.captures].reverse()) {
+    if (c.kind !== kind || seen.has(c.hash)) continue;
+    seen.add(c.hash);
+    out.push(c);
+    if (out.length >= n) break;
+  }
+  return out;
+}
+
+/**
+ * Resolves what a reader typed — a filename, or just a date — to one capture.
+ * A date with several captures of that kind resolves to the last one that day.
+ */
+export async function resolveCapture(kind, token) {
+  const manifest = await readManifest();
+  const ofKind = manifest.captures.filter((c) => c.kind === kind);
+  const exact = ofKind.find((c) => c.file === token || c.file === token.replace(`${SNAPSHOT_DIR}/`, ''));
+  if (exact) return exact;
+  const byDate = ofKind.filter((c) => c.at.startsWith(token) || c.file.startsWith(token));
+  if (byDate.length) return byDate[byDate.length - 1];
+  return null;
 }
